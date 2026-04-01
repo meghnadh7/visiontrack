@@ -112,10 +112,8 @@ export async function listProjects(params?: {
   limit?: number
   offset?: number
 }): Promise<PaginatedResponse<RedmineProject>> {
-  const { data } = await client.get<PaginatedResponse<RedmineProject>>('/redmine/projects', {
-    params,
-  })
-  return data
+  const { data } = await client.get<{ projects: RedmineProject[]; total_count: number; offset: number; limit: number }>('/redmine/projects', { params })
+  return { data: data.projects ?? [], total_count: data.total_count ?? 0, offset: data.offset ?? 0, limit: data.limit ?? 25 }
 }
 
 export interface CreateProjectPayload {
@@ -136,10 +134,10 @@ export async function createProject(payload: CreateProjectPayload): Promise<Redm
 export async function getProjectMembers(
   projectId: string | number,
 ): Promise<PaginatedResponse<RedmineMember>> {
-  const { data } = await client.get<PaginatedResponse<RedmineMember>>(
+  const { data } = await client.get<{ memberships: RedmineMember[]; total_count: number }>(
     `/redmine/projects/${projectId}/members`,
   )
-  return data
+  return { data: data.memberships ?? [], total_count: data.total_count ?? 0, offset: 0, limit: 25 }
 }
 
 export interface AddMemberPayload {
@@ -196,8 +194,8 @@ export interface CreateIssuePayload {
 }
 
 export async function createIssue(payload: CreateIssuePayload): Promise<RedmineIssue> {
-  const { data } = await client.post<RedmineIssue>('/redmine/issues', payload)
-  return data
+  const { data } = await client.post<{ issue: RedmineIssue }>(`/redmine/projects/${payload.project_id}/issues`, payload)
+  return data.issue ?? (data as unknown as RedmineIssue)
 }
 
 export async function getIssue(issueId: string | number): Promise<RedmineIssue> {
@@ -224,29 +222,29 @@ export async function listUsers(params?: {
   offset?: number
   status?: number
 }): Promise<PaginatedResponse<RedmineUser>> {
-  const { data } = await client.get<PaginatedResponse<RedmineUser>>('/redmine/users', { params })
-  return data
+  const { data } = await client.get<{ users: RedmineUser[]; total_count: number }>('/redmine/users', { params })
+  return { data: data.users ?? [], total_count: data.total_count ?? 0, offset: 0, limit: params?.limit ?? 25 }
 }
 
 // ─── Trackers ─────────────────────────────────────────────────────────────────
 
 export async function listTrackers(): Promise<RedmineTracker[]> {
-  const { data } = await client.get<RedmineTracker[]>('/redmine/trackers')
-  return data
+  const { data } = await client.get<{ trackers: RedmineTracker[] }>('/redmine/trackers')
+  return data.trackers ?? []
 }
 
 // ─── Statuses ─────────────────────────────────────────────────────────────────
 
 export async function listStatuses(): Promise<RedmineStatus[]> {
-  const { data } = await client.get<RedmineStatus[]>('/redmine/issue_statuses')
-  return data
+  const { data } = await client.get<{ issue_statuses: RedmineStatus[] }>('/redmine/issue_statuses')
+  return data.issue_statuses ?? []
 }
 
 // ─── Roles ────────────────────────────────────────────────────────────────────
 
 export async function listRoles(): Promise<RedmineRole[]> {
-  const { data } = await client.get<RedmineRole[]>('/redmine/roles')
-  return data
+  const { data } = await client.get<{ roles: RedmineRole[] }>('/redmine/roles')
+  return data.roles ?? []
 }
 
 // ─── Attachments ──────────────────────────────────────────────────────────────

@@ -1,6 +1,23 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, Component, type ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null }
+  static getDerivedStateFromError(error: Error) { return { error } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3 text-center px-4">
+          <p className="text-red-400 font-semibold">Something went wrong</p>
+          <p className="text-gray-500 text-sm">{(this.state.error as Error).message}</p>
+          <button className="btn-secondary mt-2" onClick={() => this.setState({ error: null })}>Try again</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 // Eagerly loaded (tiny, always needed)
 import Dashboard from './pages/Dashboard'
@@ -24,6 +41,7 @@ function PageLoader() {
 export default function App() {
   return (
     <Layout>
+      <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Dashboard */}
@@ -43,6 +61,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </Layout>
   )
 }
