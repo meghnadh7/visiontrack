@@ -356,6 +356,11 @@ function RedmineModal({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function RoboflowInference() {
+  // Model source toggle
+  const [modelSource, setModelSource] = useState<'workspace' | 'public'>('workspace')
+  const [publicModelId, setPublicModelId] = useState<string>('rock-paper-scissors-sxsw')
+  const [publicModelVersion, setPublicModelVersion] = useState<string>('14')
+
   // Input state
   const [selectedProject, setSelectedProject] = useState<string>('')
   const [selectedVersion, setSelectedVersion] = useState<string>('')
@@ -452,7 +457,7 @@ export default function RoboflowInference() {
   }, [])
 
   const handleSubmit = useCallback(async () => {
-    if (!selectedProject || !selectedVersion) return
+    if (!activeProjectId || !activeVersion) return
 
     let imageBase64: string | undefined
     let urlToSend: string | undefined
@@ -475,14 +480,14 @@ export default function RoboflowInference() {
     }
 
     inferenceMutation.mutate({
-      projectId: selectedProject,
-      versionId: selectedVersion,
+      projectId: activeProjectId,
+      versionId: activeVersion,
       imageBase64,
       imageUrl: urlToSend,
       confidence: confidence / 100,
       overlap: overlap / 100,
     })
-  }, [selectedProject, selectedVersion, inputMode, imageFile, imageUrl, confidence, overlap, inferenceMutation])
+  }, [activeProjectId, activeVersion, inputMode, imageFile, imageUrl, confidence, overlap, inferenceMutation])
 
   const saveToHistory = useCallback(
     (result: RoboflowInferenceResult) => {
@@ -646,9 +651,12 @@ export default function RoboflowInference() {
   const redmineProjects = redmineProjectsData?.data ?? []
   const trackers = trackersData ?? []
 
+  const activeProjectId = modelSource === 'public' ? publicModelId.trim() : selectedProject
+  const activeVersion = modelSource === 'public' ? publicModelVersion.trim() : selectedVersion
+
   const canSubmit =
-    selectedProject &&
-    selectedVersion &&
+    activeProjectId &&
+    activeVersion &&
     ((inputMode === 'file' && imageFile !== null) ||
       (inputMode === 'url' && imageUrl.trim() !== ''))
 
@@ -677,75 +685,133 @@ export default function RoboflowInference() {
               Model Selection
             </h2>
 
-            {/* Project dropdown */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-300">Project</label>
-              {loadingProjects ? (
-                <div className="flex items-center gap-2 text-sm text-gray-400 py-2">
-                  <Loader2 size={14} className="animate-spin" />
-                  Loading projects…
-                </div>
-              ) : (
-                <div className="relative">
-                  <select
-                    value={selectedProject}
-                    onChange={(e) => {
-                      setSelectedProject(e.target.value)
-                      setSelectedVersion('')
-                      setInferenceResult(null)
-                    }}
-                    className="w-full px-3 py-2 pr-8 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 transition-colors appearance-none"
-                  >
-                    <option value="">Select project…</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={14}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                  />
-                </div>
-              )}
+            {/* Source toggle */}
+            <div className="flex rounded-lg overflow-hidden border border-gray-700">
+              <button
+                onClick={() => setModelSource('workspace')}
+                className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                  modelSource === 'workspace'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                My Workspace
+              </button>
+              <button
+                onClick={() => setModelSource('public')}
+                className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                  modelSource === 'public'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                Public Model
+              </button>
             </div>
 
-            {/* Version dropdown */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-300">Version</label>
-              {loadingVersions ? (
-                <div className="flex items-center gap-2 text-sm text-gray-400 py-2">
-                  <Loader2 size={14} className="animate-spin" />
-                  Loading versions…
+            {modelSource === 'workspace' ? (
+              <>
+                {/* Project dropdown */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-300">Project</label>
+                  {loadingProjects ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-400 py-2">
+                      <Loader2 size={14} className="animate-spin" />
+                      Loading projects…
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={selectedProject}
+                        onChange={(e) => {
+                          setSelectedProject(e.target.value)
+                          setSelectedVersion('')
+                          setInferenceResult(null)
+                        }}
+                        className="w-full px-3 py-2 pr-8 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 transition-colors appearance-none"
+                      >
+                        <option value="">Select project…</option>
+                        {projects.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={14}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      />
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="relative">
-                  <select
-                    value={selectedVersion}
-                    onChange={(e) => {
-                      setSelectedVersion(e.target.value)
-                      setInferenceResult(null)
-                    }}
-                    disabled={!selectedProject}
-                    className="w-full px-3 py-2 pr-8 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">
-                      {!selectedProject ? 'Select a project first' : 'Select version…'}
-                    </option>
-                    {versions.map((v) => (
-                      <option key={v.id} value={v.version}>
-                        v{v.version} — {v.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={14}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+
+                {/* Version dropdown */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-300">Version</label>
+                  {loadingVersions ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-400 py-2">
+                      <Loader2 size={14} className="animate-spin" />
+                      Loading versions…
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={selectedVersion}
+                        onChange={(e) => {
+                          setSelectedVersion(e.target.value)
+                          setInferenceResult(null)
+                        }}
+                        disabled={!selectedProject}
+                        className="w-full px-3 py-2 pr-8 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">
+                          {!selectedProject ? 'Select a project first' : 'Select version…'}
+                        </option>
+                        {versions.map((v) => (
+                          <option key={v.id} value={v.version}>
+                            v{v.version} — {v.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={14}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      />
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Public model ID */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-300">Model ID</label>
+                  <input
+                    type="text"
+                    value={publicModelId}
+                    onChange={(e) => { setPublicModelId(e.target.value); setInferenceResult(null) }}
+                    placeholder="e.g. rock-paper-scissors-sxsw"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
                   />
                 </div>
-              )}
-            </div>
+                {/* Public model version */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-gray-300">Version</label>
+                  <input
+                    type="text"
+                    value={publicModelVersion}
+                    onChange={(e) => { setPublicModelVersion(e.target.value); setInferenceResult(null) }}
+                    placeholder="e.g. 14"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Use any public model from{' '}
+                  <span className="text-blue-400">universe.roboflow.com</span>. The default is a
+                  rock-paper-scissors detector — just upload a hand photo to try it.
+                </p>
+              </>
+            )}
           </div>
 
           {/* Image input */}

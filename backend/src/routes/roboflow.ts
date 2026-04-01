@@ -161,12 +161,57 @@ router.get(
   }
 );
 
-// POST /api/roboflow/infer/:projectId/:version
-// Run inference on an image.
-// Accepts either:
-//   - A multipart/form-data file (field: "image")
-//   - A query/body param "url" containing a publicly accessible image URL
-// Optional query params: confidence, overlap
+// POST /api/roboflow/inference
+// Run inference. Accepts JSON body: { projectId, versionId, imageUrl?, imageBase64?, confidence?, overlap? }
+router.post(
+  '/inference',
+  async (req: Request, res: Response) => {
+    try {
+      const { projectId, versionId, imageUrl, imageBase64, confidence, overlap } = req.body;
+
+      if (!projectId || !versionId) {
+        res.status(400).json({ error: 'projectId and versionId are required' });
+        return;
+      }
+
+      const conf = confidence !== undefined ? Number(confidence) : undefined;
+      const ovlp = overlap !== undefined ? Number(overlap) : undefined;
+
+      if (imageUrl) {
+        const response = await roboflowService.inferImageUrl(
+          projectId,
+          String(versionId),
+          imageUrl,
+          conf,
+          ovlp
+        );
+        res.status(response.status).json(response.data);
+        return;
+      }
+
+      if (imageBase64) {
+        const buffer = Buffer.from(imageBase64, 'base64');
+        const response = await roboflowService.inferImageFile(
+          projectId,
+          String(versionId),
+          buffer,
+          'image.jpg',
+          'image/jpeg',
+          conf,
+          ovlp
+        );
+        res.status(response.status).json(response.data);
+        return;
+      }
+
+      res.status(400).json({ error: 'imageUrl or imageBase64 is required' });
+    } catch (err) {
+      handleError(err, res);
+    }
+  }
+);
+
+// POST /api/roboflow/infer/:projectId/:version  (legacy route kept for compatibility)
 router.post(
   '/infer/:projectId/:version',
   upload.single('image'),
@@ -175,40 +220,22 @@ router.post(
       const { projectId, version } = req.params;
       const imageUrl: string | undefined =
         (req.query.url as string) || (req.body.url as string);
-      const confidence = req.query.confidence
-        ? Number(req.query.confidence)
-        : undefined;
-      const overlap = req.query.overlap
-        ? Number(req.query.overlap)
-        : undefined;
+      const confidence = req.query.confidence ? Number(req.query.confidence) : undefined;
+      const overlap = req.query.overlap ? Number(req.query.overlap) : undefined;
 
       if (imageUrl) {
-        const response = await roboflowService.inferImageUrl(
-          projectId,
-          version,
-          imageUrl,
-          confidence,
-          overlap
-        );
+        const response = await roboflowService.inferImageUrl(projectId, version, imageUrl, confidence, overlap);
         res.status(response.status).json(response.data);
         return;
       }
 
       if (!req.file) {
-        res
-          .status(400)
-          .json({ error: 'No image file or URL provided for inference' });
+        res.status(400).json({ error: 'No image file or URL provided for inference' });
         return;
       }
 
       const response = await roboflowService.inferImageFile(
-        projectId,
-        version,
-        req.file.buffer,
-        req.file.originalname,
-        req.file.mimetype,
-        confidence,
-        overlap
+        projectId, version, req.file.buffer, req.file.originalname, req.file.mimetype, confidence, overlap
       );
       res.status(response.status).json(response.data);
     } catch (err) {
