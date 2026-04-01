@@ -64,6 +64,16 @@ export async function listIssues(
   return redmineClient.get(`/projects/${projectId}/issues.json`, { params });
 }
 
+export interface ListAllIssuesParams extends ListIssuesParams {
+  project_id?: string | number;
+}
+
+export async function listAllIssues(
+  params?: ListAllIssuesParams
+): Promise<AxiosResponse> {
+  return redmineClient.get('/issues.json', { params });
+}
+
 export async function createIssue(
   projectId: string,
   body: Record<string, unknown>

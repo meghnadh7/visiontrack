@@ -77,6 +77,35 @@ router.post(
 
 // ---- Issues ----
 
+// GET /api/redmine/issues
+// List issues across all projects. Optional query params: project_id, status_id,
+// priority_id, assigned_to_id, tracker_id, offset, limit, sort
+router.get('/issues', async (req: Request, res: Response) => {
+  try {
+    const params: redmineService.ListAllIssuesParams = {};
+    if (req.query.project_id) params.project_id = req.query.project_id as string;
+    if (req.query.status_id) params.status_id = req.query.status_id as string;
+    if (req.query.priority_id) params.priority_id = Number(req.query.priority_id);
+    if (req.query.assigned_to_id) params.assigned_to_id = Number(req.query.assigned_to_id);
+    if (req.query.tracker_id) params.tracker_id = Number(req.query.tracker_id);
+    if (req.query.offset) params.offset = Number(req.query.offset);
+    if (req.query.limit) params.limit = Number(req.query.limit);
+    if (req.query.sort) params.sort = req.query.sort as string;
+
+    const response = await redmineService.listAllIssues(params);
+    // Normalise to PaginatedResponse shape the frontend expects
+    const raw = response.data as { issues?: unknown[]; total_count?: number; offset?: number; limit?: number };
+    res.status(response.status).json({
+      data: raw.issues ?? [],
+      total_count: raw.total_count ?? 0,
+      offset: raw.offset ?? 0,
+      limit: raw.limit ?? 25,
+    });
+  } catch (err) {
+    handleError(err, res);
+  }
+});
+
 // GET /api/redmine/projects/:id/issues
 // List issues for a project.
 // Optional query params: status_id, priority_id, assigned_to_id, tracker_id,

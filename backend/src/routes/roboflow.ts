@@ -24,7 +24,10 @@ function handleError(err: unknown, res: Response): void {
 router.get('/projects', async (_req: Request, res: Response) => {
   try {
     const response = await roboflowService.listProjects();
-    res.status(response.status).json(response.data);
+    // Roboflow returns { workspace: { ..., projects: [] } } — normalise to { projects: [] }
+    const data = response.data as { workspace?: { projects?: unknown[] } };
+    const projects = data?.workspace?.projects ?? (response.data as { projects?: unknown[] }).projects ?? [];
+    res.status(response.status).json({ projects });
   } catch (err) {
     handleError(err, res);
   }
