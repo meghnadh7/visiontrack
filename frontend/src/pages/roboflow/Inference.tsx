@@ -456,6 +456,9 @@ export default function RoboflowInference() {
     setInferenceError(null)
   }, [])
 
+  const activeProjectId = modelSource === 'public' ? publicModelId.trim() : selectedProject
+  const activeVersion = modelSource === 'public' ? publicModelVersion.trim() : selectedVersion
+
   const handleSubmit = useCallback(async () => {
     if (!activeProjectId || !activeVersion) return
 
@@ -650,9 +653,6 @@ export default function RoboflowInference() {
   const versions = versionsData?.versions ?? []
   const redmineProjects = redmineProjectsData?.data ?? []
   const trackers = trackersData ?? []
-
-  const activeProjectId = modelSource === 'public' ? publicModelId.trim() : selectedProject
-  const activeVersion = modelSource === 'public' ? publicModelVersion.trim() : selectedVersion
 
   const canSubmit =
     activeProjectId &&
