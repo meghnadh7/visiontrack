@@ -12,6 +12,8 @@ import {
   Loader2,
   Calendar,
   Layers,
+  ExternalLink,
+  PenLine,
 } from 'lucide-react'
 import {
   getProject,
@@ -60,21 +62,39 @@ function VersionCard({ version }: { version: RoboflowVersion }) {
   )
 }
 
-function ImageCard({ image }: { image: RoboflowImage }) {
+function ImageCard({ image, projectId }: { image: RoboflowImage; projectId: string }) {
+  const annotateUrl = `https://app.roboflow.com/${projectId}/annotate/${image.id}`
+
   return (
     <div className="card overflow-hidden group">
-      {image.thumb ? (
-        <img
-          src={image.thumb}
-          alt={image.name}
-          className="w-full h-32 object-cover bg-gray-800 group-hover:scale-105 transition-transform duration-200"
-          loading="lazy"
-        />
-      ) : (
-        <div className="w-full h-32 bg-gray-800 flex items-center justify-center">
-          <Image size={24} className="text-gray-600" />
-        </div>
-      )}
+      <div className="relative">
+        {image.thumb ? (
+          <img
+            src={image.thumb}
+            alt={image.name}
+            className="w-full h-32 object-cover bg-gray-800 group-hover:scale-105 transition-transform duration-200"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-32 bg-gray-800 flex items-center justify-center">
+            <Image size={24} className="text-gray-600" />
+          </div>
+        )}
+        {!image.annotated && (
+          <a
+            href={annotateUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Open in Roboflow annotation editor"
+          >
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded-lg">
+              <PenLine size={12} /> Annotate
+            </span>
+          </a>
+        )}
+      </div>
       <div className="p-3">
         <p className="text-xs font-medium text-gray-300 truncate" title={image.name}>
           {image.name}
@@ -91,8 +111,18 @@ function ImageCard({ image }: { image: RoboflowImage }) {
           >
             {image.split}
           </span>
-          {image.annotated && (
-            <CheckCircle2 size={12} className="text-green-400" />
+          {image.annotated ? (
+            <CheckCircle2 size={12} className="text-green-400" aria-label="Annotated" />
+          ) : (
+            <a
+              href={annotateUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 transition-colors"
+              title="Open annotation editor"
+            >
+              <ExternalLink size={11} /> Annotate
+            </a>
           )}
         </div>
         <p className="text-xs text-gray-600 mt-1">
@@ -346,7 +376,7 @@ export default function RoboflowProjectDetail() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {imagesData?.images?.map((img) => (
-                  <ImageCard key={img.id} image={img} />
+                  <ImageCard key={img.id} image={img} projectId={projectId!} />
                 ))}
               </div>
             ))}
