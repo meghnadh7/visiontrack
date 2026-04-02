@@ -86,7 +86,7 @@
 <h1>VisionTrack – Technical Report</h1>
 <div class="meta">
   <span>Meghnadh Bijnapally</span>
-  <span>meghnadh007@gmail.com</span>
+  <span>bijnapally.m@northeastern.edu</span>
   <span>April 2026</span>
 </div>
 
@@ -226,7 +226,9 @@
     <tr><td>Backend</td><td>Express + TypeScript</td><td>Minimal setup for a pure proxy layer; no ORM needed since the BFF holds no state itself</td></tr>
     <tr><td>File upload</td><td>Multer (memoryStorage)</td><td>Keeps uploaded bytes in a <code>Buffer</code> so they can be streamed directly to Roboflow — no temp-file cleanup needed</td></tr>
     <tr><td>HTTP client</td><td>Axios (both sides)</td><td>Interceptor support for auth headers; consistent error shape via <code>AxiosError</code></td></tr>
-    <tr><td>Containerisation</td><td>Docker + Compose</td><td>Redmine has an official image; Compose lets the frontend and backend start together with a single command</td></tr>
+    <tr><td>Authentication</td><td>Keycloak 24 (OIDC)</td><td>Open-source identity provider; handles login/logout, token refresh, and role assignment without custom auth code. PKCE flow means no client secret needed in the browser</td></tr>
+    <tr><td>JWT validation</td><td>jsonwebtoken + jwks-rsa</td><td>Backend fetches Keycloak's public keys via JWKS endpoint and verifies RS256 tokens; keys are cached for 10 minutes to avoid hammering Keycloak on every request</td></tr>
+    <tr><td>Containerisation</td><td>Docker + Compose</td><td>Redmine has an official image; Compose lets the frontend, backend, and Keycloak start together with a single command</td></tr>
     <tr><td>CI</td><td>GitHub Actions</td><td>Two parallel jobs: <code>tsc --noEmit</code> + <code>npm test</code> on the backend, <code>npm run build</code> on the frontend</td></tr>
   </tbody>
 </table>
@@ -353,16 +355,75 @@ useQuery({ queryKey: ['redmine-issues-all-chart'], queryFn: () => listIssues({ l
   the chart colours are consistent regardless of the order Redmine returns statuses.
 </p>
 
-<h2>5. Trade-offs and Limitations</h2>
-
-<h3>No BFF authentication</h3>
+<h2>5. Authentication — Keycloak Integration</h2>
 <p>
-  The Express server has no session or JWT layer. Any process that can reach port 3001 can query
-  either API through it. This is acceptable for a local setup but would need a middleware like
-  <code>express-jwt</code> or an API-gateway in front before any multi-user deployment. Roboflow
-  and Redmine credentials are protected only by the fact that they're not visible to the browser —
-  the BFF itself is open.
+  After the initial build I added a full OIDC authentication layer using Keycloak 24. The goal
+  was to have a single login that also auto-provisions accounts in Redmine and Roboflow so users
+  don't need separate credentials for each system.
 </p>
+
+<h3>5.1 How it fits together</h3>
+<p>
+  Keycloak runs as a fourth Docker Compose service on port 8180. It imports the realm config on
+  startup from <code>keycloak/realm-export.json</code>, which defines the <code>visiontrack</code>
+  realm, a public PKCE client (<code>visiontrack-app</code>), and three roles:
+  <code>admin</code>, <code>developer</code>, and <code>reporter</code>.
+</p>
+<p>
+  The frontend uses <code>keycloak-js</code> with <code>onLoad: 'login-required'</code> — if the
+  browser has no active Keycloak session it's redirected to the login page before the React app
+  even renders. After login succeeds, an Axios interceptor attaches
+  <code>Authorization: Bearer &lt;token&gt;</code> to every outgoing request, and calls
+  <code>keycloak.updateToken(30)</code> first so the token is always refreshed if it's within
+  30 seconds of expiry:
+</p>
+<pre>
+client.interceptors.request.use(async (config) => {
+  if (keycloak.authenticated) {
+    await keycloak.updateToken(30).catch(() => keycloak.login())
+    config.headers['Authorization'] = `Bearer ${keycloak.token}`
+  }
+  return config
+})
+</pre>
+
+<h3>5.2 Backend JWT validation</h3>
+<p>
+  The Express BFF validates incoming JWTs in a <code>requireAuth</code> middleware applied to all
+  <code>/api/roboflow</code> and <code>/api/redmine</code> routes. It fetches Keycloak's public
+  keys from the JWKS endpoint and verifies the RS256 signature:
+</p>
+<pre>
+// src/middleware/auth.ts
+const jwks = jwksClient({
+  jwksUri: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`,
+  cache: true,
+  cacheMaxAge: 600_000,  // 10 minutes
+})
+
+jwt.verify(token, getKey, { algorithms: ['RS256'], issuer: `...` }, (err, decoded) => {
+  if (err) return res.status(401).json({ error: 'Invalid or expired token' })
+  req.user = decoded
+  next()
+})
+</pre>
+<p>
+  In development mode the middleware logs a warning but passes the request through, so the app
+  still works locally when Keycloak isn't running.
+</p>
+
+<h3>5.3 User provisioning</h3>
+<p>
+  After the first successful login, the frontend fires a <code>POST /api/auth/provision</code>
+  request (fire-and-forget) with the token claims. The backend creates a matching Redmine user
+  via <code>POST /users.json</code> — it checks for an existing login first so the call is
+  idempotent — and sends a Roboflow workspace invite. Roles are mapped from Keycloak realm roles
+  to Redmine role IDs (admin → Manager, developer → Developer, reporter → Reporter). The sidebar
+  shows the logged-in user's name and email pulled from the JWT claims, with a Sign out button
+  that calls <code>keycloak.logout()</code>.
+</p>
+
+<h2>6. Trade-offs and Limitations</h2>
 
 <h3>Inference history stored in localStorage</h3>
 <p>
@@ -392,7 +453,7 @@ useQuery({ queryKey: ['redmine-issues-all-chart'], queryFn: () => listIssues({ l
   most obvious missing piece for a production-grade version of this.
 </p>
 
-<h2>6. Challenges Encountered</h2>
+<h2>7. Challenges Encountered</h2>
 
 <h3>Roboflow inference URL</h3>
 <p>
@@ -437,7 +498,7 @@ docker exec -e SECRET_KEY_BASE=... redmine bash -c \
   component wrapping the router so future crashes show an error message instead of a blank screen.
 </p>
 
-<h2>7. Testing</h2>
+<h2>8. Testing</h2>
 <p>
   Tests are in <code>backend/src/__tests__/</code> using Jest + ts-jest + Supertest. There are
   three suites:
@@ -466,7 +527,7 @@ docker exec -e SECRET_KEY_BASE=... redmine bash -c \
   non-array object.
 </p>
 
-<h2>8. Tools and AI Assistance</h2>
+<h2>9. Tools and AI Assistance</h2>
 <p>
   I used <strong>Gemini Pro</strong> as an AI coding assistant throughout this project for several
   things:
@@ -494,11 +555,11 @@ docker exec -e SECRET_KEY_BASE=... redmine bash -c \
   complete solution provider.
 </p>
 
-<h2>9. What I Would Do Differently</h2>
+<h2>10. What I Would Do Differently</h2>
 <ul>
-  <li>Add authentication to the BFF from day one — even a simple JWT check on
-      <code>Authorization: Bearer ...</code> header would stop the API being open to anyone on
-      the network</li>
+  <li>Add Keycloak (or any OIDC provider) from day one rather than bolting it on later —
+      retrofitting auth meant touching the BFF entry point, every route file, the frontend
+      provider tree, and the Compose config all at once</li>
   <li>Store inference runs in a server-side table rather than localStorage; would also let
       the dashboard show history across devices and make runs queryable</li>
   <li>Add offset-based pagination to the image grid and issue list before the first demo —
@@ -509,7 +570,7 @@ docker exec -e SECRET_KEY_BASE=... redmine bash -c \
       internal URL, rather than relying on it being started separately on the host</li>
 </ul>
 
-<h2>10. Repository and Setup</h2>
+<h2>11. Repository and Setup</h2>
 <p>Source: <code>https://github.com/meghnadh7/otto</code></p>
 <pre>
 # Clone and install
@@ -519,12 +580,15 @@ git clone https://github.com/meghnadh7/otto.git && cd otto
 # REDMINE_URL, REDMINE_API_KEY
 cp backend/.env.example backend/.env
 
-# Start Redmine (first time: run the seed script in the container)
-docker run -d --name redmine -p 8080:3000 redmine
+# Start everything (Keycloak + backend + frontend)
+docker compose up --build
 
-# Run backend and frontend in separate terminals
-cd backend  && npm install && npm run dev   # → localhost:3001
-cd frontend && npm install && npm run dev   # → localhost:3000
+# Keycloak admin console: http://localhost:8180  (admin / admin)
+# Frontend:              http://localhost:3000   (redirects to Keycloak login)
+# Backend API:           http://localhost:3001
+
+# Default login: admin@visiontrack.local / admin
+# (defined in keycloak/realm-export.json — change before any real deployment)
 </pre>
 <p>Run tests:</p>
 <pre>cd backend && npm test</pre>
