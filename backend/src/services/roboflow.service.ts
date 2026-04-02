@@ -20,12 +20,12 @@ export async function listProjects(): Promise<AxiosResponse> {
 
 // Get project details
 export async function getProject(projectId: string): Promise<AxiosResponse> {
-  return roboflowClient.get(`/${ROBOFLOW_WORKSPACE}/${projectId}`);
+  return roboflowClient.get(`/${projectId}`);
 }
 
 // List versions for a project
 export async function listVersions(projectId: string): Promise<AxiosResponse> {
-  return roboflowClient.get(`/${ROBOFLOW_WORKSPACE}/${projectId}`);
+  return roboflowClient.get(`/${projectId}`);
 }
 
 // Create a new version for a project
@@ -33,10 +33,7 @@ export async function createVersion(
   projectId: string,
   body: Record<string, unknown>
 ): Promise<AxiosResponse> {
-  return roboflowClient.post(
-    `/${ROBOFLOW_WORKSPACE}/${projectId}/versions`,
-    body
-  );
+  return roboflowClient.post(`/${projectId}/versions`, body);
 }
 
 // Upload an image to a project (base64 encoded)
@@ -46,7 +43,7 @@ export async function uploadImageBase64(
   filename: string,
   split: string = 'train'
 ): Promise<AxiosResponse> {
-  const url = `/${ROBOFLOW_WORKSPACE}/${projectId}/upload`;
+  const url = `/${projectId}/upload`;
   return roboflowClient.post(url, imageBase64, {
     params: {
       api_key: ROBOFLOW_API_KEY,
@@ -74,7 +71,7 @@ export async function uploadImageFormData(
   });
 
   return roboflowClient.post(
-    `/${ROBOFLOW_WORKSPACE}/${projectId}/upload`,
+    `/${projectId}/upload`,
     form,
     {
       params: {
@@ -96,7 +93,7 @@ export async function listImages(
 ): Promise<AxiosResponse> {
   const params: Record<string, string> = {};
   if (split) params['split'] = split;
-  return roboflowClient.get(`/${ROBOFLOW_WORKSPACE}/${projectId}/images`, {
+  return roboflowClient.get(`/${projectId}/images`, {
     params,
   });
 }
@@ -106,9 +103,7 @@ export async function getImage(
   projectId: string,
   imageId: string
 ): Promise<AxiosResponse> {
-  return roboflowClient.get(
-    `/${ROBOFLOW_WORKSPACE}/${projectId}/images/${imageId}`
-  );
+  return roboflowClient.get(`/${projectId}/images/${imageId}`);
 }
 
 // Run inference on an image file (multipart)
