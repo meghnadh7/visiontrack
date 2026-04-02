@@ -498,6 +498,48 @@ docker exec -e SECRET_KEY_BASE=... redmine bash -c \
   component wrapping the router so future crashes show an error message instead of a blank screen.
 </p>
 
+<h3>Roboflow image listing endpoint changed</h3>
+<p>
+  The initial implementation called <code>GET /{project}/images</code> to list images in a project,
+  which returned <code>{"error": "Endpoint not found."}</code>. After inspecting the Roboflow API
+  directly with cURL I found the correct endpoint is <code>POST /{project}/search</code> with a JSON
+  body containing <code>limit</code> and <code>offset</code>. The search result returns image IDs and
+  owner IDs but no thumbnail URLs; those are constructed separately using the
+  <code>source.roboflow.com/{owner}/{id}/thumb.jpg</code> pattern observed from the project icon
+  URLs in the API response.
+</p>
+
+<h3>Nested error objects rendered as [object Object]</h3>
+<p>
+  When Roboflow returns an inference error for an untrained model, the shape is
+  <code>{"error": {"detail": "Method Not Allowed"}}</code> — the <code>error</code> field is itself
+  an object. The axios response interceptor was forwarding this object directly to
+  <code>new Error(message)</code>, which stringifies any non-primitive as <code>[object Object]</code>.
+  The fix extracts the nested <code>.detail</code> or <code>.message</code> field before constructing
+  the error, so the UI now shows the actual Roboflow error message.
+</p>
+
+<h3>Create issue 404 from string project identifier</h3>
+<p>
+  Redmine project links use the string identifier (e.g. <code>cv-qa</code>) rather than the numeric
+  ID, so <code>useParams()</code> on the issues page returns a string. The original code did
+  <code>parseInt(projectId, 10)</code> to convert it, but <code>parseInt("cv-qa", 10)</code> is
+  <code>NaN</code>, producing a URL of <code>/api/redmine/projects/NaN/issues</code> which returned
+  404. The fix passes the identifier string directly — the Redmine API accepts both numeric IDs and
+  string identifiers for all project-scoped routes.
+</p>
+
+<h3>No trained model for workspace inference</h3>
+<p>
+  The pothole detection project was forked from Roboflow Universe and has a dataset version, but
+  Roboflow requires an explicit training step before hosted inference is available. Training via the
+  API returned <code>500 Unknown error</code> (likely a plan restriction), and the web UI must be
+  used instead. To keep the inference feature demonstrable immediately, I added a "Public Model"
+  toggle that points at publicly accessible Roboflow Universe models. The default is
+  <code>new-pothole-detection/1</code> (Smartathon dataset, ~91% confidence on pothole images),
+  which requires no training and works with any valid API key.
+</p>
+
 <h2>8. Testing</h2>
 <p>
   Tests are in <code>backend/src/__tests__/</code> using Jest + ts-jest + Supertest. There are
