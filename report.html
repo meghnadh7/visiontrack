@@ -12,21 +12,21 @@
     line-height: 1.65;
     color: #1a1a1a;
     background: #fff;
-    max-width: 720px;
+    max-width: 740px;
     margin: 0 auto;
     padding: 48px 40px;
   }
   h1 { font-size: 22pt; font-weight: bold; margin-bottom: 4px; }
-  h2 { font-size: 14pt; font-weight: bold; margin: 28px 0 8px; border-bottom: 1.5px solid #ccc; padding-bottom: 4px; }
-  h3 { font-size: 11.5pt; font-weight: bold; margin: 16px 0 4px; }
+  h2 { font-size: 14pt; font-weight: bold; margin: 30px 0 8px; border-bottom: 1.5px solid #ccc; padding-bottom: 4px; }
+  h3 { font-size: 11.5pt; font-weight: bold; margin: 18px 0 5px; }
   p { margin-bottom: 10px; }
   ul, ol { margin: 6px 0 10px 22px; }
-  li { margin-bottom: 4px; }
+  li { margin-bottom: 5px; }
   .meta { font-size: 10pt; color: #555; margin-bottom: 32px; }
   .meta span { margin-right: 18px; }
   code {
     font-family: 'Courier New', monospace;
-    font-size: 10pt;
+    font-size: 9.8pt;
     background: #f3f3f3;
     padding: 1px 5px;
     border-radius: 3px;
@@ -38,10 +38,11 @@
     border-radius: 4px;
     padding: 12px 16px;
     margin: 10px 0 14px;
-    font-size: 9.5pt;
+    font-size: 9pt;
     font-family: 'Courier New', monospace;
     overflow-x: auto;
     white-space: pre;
+    line-height: 1.5;
   }
   .arch-box {
     background: #f9f9f9;
@@ -50,33 +51,31 @@
     padding: 16px 20px;
     margin: 12px 0 16px;
     font-family: 'Courier New', monospace;
-    font-size: 9.5pt;
-    line-height: 1.7;
+    font-size: 9.2pt;
+    line-height: 1.8;
+  }
+  .diagram-wrap {
+    margin: 16px 0 20px;
+    text-align: center;
+  }
+  .diagram-caption {
+    font-size: 9pt;
+    color: #666;
+    font-style: italic;
+    margin-top: 8px;
   }
   table {
     width: 100%;
     border-collapse: collapse;
     margin: 10px 0 16px;
-    font-size: 10.5pt;
+    font-size: 10.2pt;
   }
-  th, td {
-    border: 1px solid #ccc;
-    padding: 7px 10px;
-    text-align: left;
-  }
+  th, td { border: 1px solid #ccc; padding: 7px 10px; text-align: left; }
   th { background: #f0f0f0; font-weight: bold; }
   tr:nth-child(even) td { background: #fafafa; }
-  .note {
-    background: #fffbea;
-    border-left: 3px solid #e8c840;
-    padding: 8px 12px;
-    margin: 10px 0;
-    font-size: 10.5pt;
-    font-style: italic;
-  }
+  .caption { font-size: 9pt; color: #666; margin-top: -10px; margin-bottom: 14px; font-style: italic; }
   @media print {
     body { padding: 24px 28px; font-size: 11pt; }
-    h1 { page-break-after: avoid; }
     h2, h3 { page-break-after: avoid; }
     pre, table { page-break-inside: avoid; }
   }
@@ -93,207 +92,442 @@
 
 <h2>1. Project Overview</h2>
 <p>
-  VisionTrack is a unified web dashboard I built to bridge two separate tools I was already using in
-  my workflow — Roboflow for managing computer vision datasets and Redmine for tracking project issues.
-  The idea was pretty simple: instead of switching between two browser tabs constantly, have one
-  interface that lets me view datasets, run inference, and see which issues are open, all in one place.
+  VisionTrack is a web dashboard I built to consolidate two tools I use for computer vision work —
+  Roboflow for dataset and model management, and Redmine for issue tracking. The goal was a single
+  interface where I can browse datasets, upload images, run inference against a trained model, and
+  track related bugs or tasks, without constantly switching between browser tabs.
 </p>
 <p>
-  The app ended up with five main areas: a dashboard overview, Roboflow project and image management,
-  an inference runner, and Redmine project/issue tracking with a members panel. There's also a GitHub
-  Actions CI pipeline and Docker setup for both services.
+  The app has five main areas: a live dashboard (stat cards + charts), Roboflow project/image
+  management with an inline upload flow, an inference runner with bounding-box overlay, and
+  Redmine project/issue management including a members tab. There's a GitHub Actions CI pipeline
+  and Docker Compose setup for the full stack.
 </p>
 
 <h2>2. Architecture</h2>
 <p>
-  I went with a Backend-for-Frontend (BFF) pattern. The React app never talks to Roboflow or Redmine
-  directly — everything goes through an Express proxy that handles auth headers and any response
-  normalisation. This kept API keys off the client entirely.
+  I used a Backend-for-Frontend (BFF) pattern. The React app only ever talks to the Express server
+  at <code>/api/*</code> — it never hits Roboflow or Redmine directly. The BFF handles authentication
+  headers, response normalisation, and file forwarding. This keeps both API keys off the client
+  entirely (they live in a <code>.env</code> file that's gitignored).
 </p>
 
-<div class="arch-box">
-Browser (React + Vite)
-        │
-        │  HTTP  /api/*
-        ▼
-Express BFF  (Node 20, TypeScript)
-   ├── /api/roboflow/*  ──────▶  api.roboflow.com  (API key in query param)
-   └── /api/redmine/*   ──────▶  Redmine instance  (X-Redmine-API-Key header)
+<div class="diagram-wrap">
+<svg viewBox="0 0 660 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:660px;font-family:Arial,Helvetica,sans-serif;">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L9,3.5 z" fill="#555"/>
+    </marker>
+    <marker id="arr-blue" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L9,3.5 z" fill="#3b82f6"/>
+    </marker>
+  </defs>
 
-Redmine runs in a Docker container on port 8080 (SQLite storage).
+  <!-- ── Browser box ── -->
+  <rect x="25" y="10" width="610" height="76" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+  <text x="330" y="34" text-anchor="middle" font-size="14" font-weight="bold" fill="#1d4ed8">Browser — React App (port 3000)</text>
+  <line x1="25" y1="42" x2="635" y2="42" stroke="#bfdbfe" stroke-width="1"/>
+  <text x="165" y="58" text-anchor="middle" font-size="10" fill="#1e40af">React 18 + TypeScript</text>
+  <text x="165" y="72" text-anchor="middle" font-size="10" fill="#1e40af">Vite build tool</text>
+  <text x="330" y="58" text-anchor="middle" font-size="10" fill="#1e40af">TanStack Query v5</text>
+  <text x="330" y="72" text-anchor="middle" font-size="10" fill="#1e40af">(caching + query keys)</text>
+  <text x="495" y="58" text-anchor="middle" font-size="10" fill="#1e40af">Recharts · Tailwind CSS</text>
+  <text x="495" y="72" text-anchor="middle" font-size="10" fill="#1e40af">Lucide icons</text>
+
+  <!-- ── Arrow: Browser → BFF ── -->
+  <line x1="330" y1="86" x2="330" y2="128" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="5,3" marker-end="url(#arr-blue)"/>
+  <rect x="200" y="97" width="260" height="19" rx="4" fill="#dbeafe"/>
+  <text x="330" y="111" text-anchor="middle" font-size="9.5" fill="#1d4ed8">axios  HTTP /api/*  →  localhost:3001</text>
+
+  <!-- ── BFF box ── -->
+  <rect x="25" y="128" width="610" height="108" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="330" y="150" text-anchor="middle" font-size="14" font-weight="bold" fill="#15803d">Express BFF — Node.js / TypeScript (port 3001)</text>
+  <line x1="25" y1="158" x2="635" y2="158" stroke="#bbf7d0" stroke-width="1"/>
+
+  <!-- BFF internal: 3 columns -->
+  <!-- Col 1: Routes -->
+  <rect x="40" y="165" width="178" height="62" rx="5" fill="#dcfce7" stroke="#86efac" stroke-width="1"/>
+  <text x="129" y="181" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#166534">Routes</text>
+  <text x="129" y="196" text-anchor="middle" font-size="9" fill="#166534">/api/roboflow/*</text>
+  <text x="129" y="210" text-anchor="middle" font-size="9" fill="#166534">/api/redmine/*</text>
+  <text x="129" y="224" text-anchor="middle" font-size="9" fill="#166534">/api/roboflow/inference</text>
+
+  <!-- Col 2: Middleware -->
+  <rect x="240" y="165" width="178" height="62" rx="5" fill="#dcfce7" stroke="#86efac" stroke-width="1"/>
+  <text x="329" y="181" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#166534">Middleware</text>
+  <text x="329" y="196" text-anchor="middle" font-size="9" fill="#166534">Multer memoryStorage</text>
+  <text x="329" y="210" text-anchor="middle" font-size="9" fill="#166534">(multipart → Buffer)</text>
+  <text x="329" y="224" text-anchor="middle" font-size="9" fill="#166534">express.json()</text>
+
+  <!-- Col 3: Normalisation -->
+  <rect x="440" y="165" width="178" height="62" rx="5" fill="#dcfce7" stroke="#86efac" stroke-width="1"/>
+  <text x="529" y="181" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#166534">normalise.ts</text>
+  <text x="529" y="196" text-anchor="middle" font-size="9" fill="#166534">Unwrap API envelopes</text>
+  <text x="529" y="210" text-anchor="middle" font-size="9" fill="#166534">classes object → count</text>
+  <text x="529" y="224" text-anchor="middle" font-size="9" fill="#166534">Forward 4xx/5xx status</text>
+
+  <!-- ── Arrow: BFF → Roboflow ── -->
+  <line x1="165" y1="236" x2="165" y2="280" stroke="#ea580c" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="52" y="248" width="226" height="19" rx="4" fill="#ffedd5"/>
+  <text x="165" y="262" text-anchor="middle" font-size="9" fill="#9a3412">api_key= query param · multipart upload</text>
+
+  <!-- ── Arrow: BFF → Redmine ── -->
+  <line x1="495" y1="236" x2="495" y2="280" stroke="#9333ea" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="382" y="248" width="226" height="19" rx="4" fill="#f3e8ff"/>
+  <text x="495" y="262" text-anchor="middle" font-size="9" fill="#6b21a8">X-Redmine-API-Key header · JSON body</text>
+
+  <!-- ── Roboflow box ── -->
+  <rect x="18" y="280" width="294" height="108" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+  <text x="165" y="302" text-anchor="middle" font-size="13" font-weight="bold" fill="#c2410c">Roboflow APIs</text>
+  <line x1="18" y1="309" x2="312" y2="309" stroke="#fed7aa" stroke-width="1"/>
+  <text x="165" y="324" text-anchor="middle" font-size="9.5" fill="#9a3412">api.roboflow.com</text>
+  <text x="165" y="338" text-anchor="middle" font-size="9" fill="#9a3412">Projects · Versions · Image upload</text>
+  <text x="165" y="353" text-anchor="middle" font-size="9.5" fill="#9a3412">detect.roboflow.com</text>
+  <text x="165" y="367" text-anchor="middle" font-size="9" fill="#9a3412">Object detection inference</text>
+  <rect x="60" y="374" width="210" height="7" rx="3" fill="#fed7aa"/>
+  <text x="165" y="381" text-anchor="middle" font-size="8" fill="#92400e">Hosted by Roboflow (cloud)</text>
+
+  <!-- ── Redmine box ── -->
+  <rect x="348" y="280" width="294" height="108" rx="8" fill="#faf5ff" stroke="#9333ea" stroke-width="2"/>
+  <text x="495" y="302" text-anchor="middle" font-size="13" font-weight="bold" fill="#7e22ce">Redmine</text>
+  <line x1="348" y1="309" x2="642" y2="309" stroke="#e9d5ff" stroke-width="1"/>
+  <text x="495" y="324" text-anchor="middle" font-size="9.5" fill="#6b21a8">Docker container · port 8080</text>
+  <text x="495" y="338" text-anchor="middle" font-size="9" fill="#6b21a8">Projects · Issues · Members · Trackers</text>
+  <text x="495" y="353" text-anchor="middle" font-size="9.5" fill="#6b21a8">SQLite (redmine.db)</text>
+  <text x="495" y="367" text-anchor="middle" font-size="9" fill="#6b21a8">REST API  /issues.json  /projects.json</text>
+  <rect x="390" y="374" width="210" height="7" rx="3" fill="#e9d5ff"/>
+  <text x="495" y="381" text-anchor="middle" font-size="8" fill="#581c87">Self-hosted</text>
+</svg>
+<p class="diagram-caption">Figure 1 — VisionTrack system architecture. The BFF proxy keeps both API keys off the browser.</p>
 </div>
 
 <p>
-  One thing I didn't anticipate upfront: the Roboflow workspace endpoint wraps its project list
-  inside a <code>workspace</code> object, and the <code>classes</code> field is a name→count map
-  rather than a plain integer. I had to normalise both of these in the BFF before sending to the
-  client, which is exactly the kind of thing a BFF is useful for.
+  The BFF also handles a few response-shape differences between what the upstream APIs return and
+  what a simple React component can consume directly — more on this in section 4.
+</p>
+<p>
+  On the frontend, all data fetching goes through TanStack Query v5. Each data source has a stable
+  query key (e.g. <code>['roboflow-projects']</code>, <code>['redmine-issues', projectId, statusFilter]</code>),
+  so navigating back to a page reuses the cached response instead of refetching. Query
+  invalidation is used after mutations (image upload, issue creation) so the relevant list
+  refreshes automatically.
 </p>
 
-<h2>3. Tech Stack</h2>
+<h2>3. Tech Stack Choices</h2>
 
 <table>
-  <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+  <thead><tr><th>Layer</th><th>Library / Tool</th><th>Reasoning</th></tr></thead>
   <tbody>
-    <tr><td>Frontend framework</td><td>React 18 + TypeScript</td><td>Comfortable with it, strong ecosystem, hooks make async state easy</td></tr>
-    <tr><td>Build tool</td><td>Vite</td><td>Much faster HMR than CRA, native ESM</td></tr>
-    <tr><td>Styling</td><td>Tailwind CSS</td><td>Utility-first keeps styles colocated with markup, no context switching</td></tr>
-    <tr><td>Data fetching</td><td>TanStack Query v5</td><td>Built-in caching, loading/error states, query invalidation — removes a lot of boilerplate</td></tr>
-    <tr><td>Charts</td><td>Recharts</td><td>Composable, SVG-based, good TypeScript types</td></tr>
-    <tr><td>Backend</td><td>Node.js + Express + TypeScript</td><td>Lightweight, enough for a proxy/BFF, familiar</td></tr>
-    <tr><td>File uploads</td><td>Multer (memoryStorage)</td><td>Buffers in memory so they can be forwarded directly to Roboflow without a temp file</td></tr>
-    <tr><td>Containerisation</td><td>Docker + Docker Compose</td><td>Reproducible environment, Redmine has an official image</td></tr>
-    <tr><td>CI</td><td>GitHub Actions</td><td>Free for public repos, simple YAML config</td></tr>
+    <tr><td>Frontend</td><td>React 18 + TypeScript</td><td>Hooks-based component model maps naturally to async API state; TypeScript catches shape mismatches at compile time</td></tr>
+    <tr><td>Build</td><td>Vite 5</td><td>Sub-second HMR; native ESM avoids CommonJS transform overhead during dev</td></tr>
+    <tr><td>Styling</td><td>Tailwind CSS 3</td><td>Utility classes colocated with JSX — no separate stylesheet context switching, consistent dark theme tokens</td></tr>
+    <tr><td>Data fetching</td><td>TanStack Query v5</td><td>Automatic background refetch, stale-while-revalidate, per-query loading/error states without manual <code>useEffect</code></td></tr>
+    <tr><td>Charts</td><td>Recharts 2</td><td>Composable SVG components; <code>ResponsiveContainer</code> handles resize without a ResizeObserver setup</td></tr>
+    <tr><td>Backend</td><td>Express + TypeScript</td><td>Minimal setup for a pure proxy layer; no ORM needed since the BFF holds no state itself</td></tr>
+    <tr><td>File upload</td><td>Multer (memoryStorage)</td><td>Keeps uploaded bytes in a <code>Buffer</code> so they can be streamed directly to Roboflow — no temp-file cleanup needed</td></tr>
+    <tr><td>HTTP client</td><td>Axios (both sides)</td><td>Interceptor support for auth headers; consistent error shape via <code>AxiosError</code></td></tr>
+    <tr><td>Containerisation</td><td>Docker + Compose</td><td>Redmine has an official image; Compose lets the frontend and backend start together with a single command</td></tr>
+    <tr><td>CI</td><td>GitHub Actions</td><td>Two parallel jobs: <code>tsc --noEmit</code> + <code>npm test</code> on the backend, <code>npm run build</code> on the frontend</td></tr>
   </tbody>
 </table>
 
-<h2>4. Key Implementation Details</h2>
+<h2>4. Implementation Details</h2>
 
-<h3>4.1 BFF response normalisation</h3>
+<h3>4.1 API response normalisation</h3>
 <p>
-  Both upstream APIs have some quirks. Roboflow's workspace list endpoint wraps everything in
-  <code>{ workspace: { projects: [...] } }</code>, and the classes field per-project is an object
-  like <code>{ pothole: 638, porthole: 75 }</code>. The single-project detail endpoint nests the
-  project under its own identifier as the key (e.g. <code>{ "new-pothole-detection": { ... } }</code>).
-  All of this gets flattened in the BFF so the frontend just sees a consistent
-  <code>{ projects: [...] }</code> shape with <code>classes</code> as a number.
+  Both upstream APIs use envelope wrappers that the frontend doesn't need to know about.
+  Roboflow's workspace list returns:
+</p>
+<pre>
+{
+  "workspace": {
+    "name": "Wall e",
+    "projects": [
+      { "id": "ws/proj", "classes": { "pothole": 638, "road": 100 }, ... }
+    ]
+  }
+}
+</pre>
+<p>
+  Two problems here: the <code>workspace</code> wrapper needs stripping, and <code>classes</code> is
+  a name→count map rather than an integer. The frontend types it as <code>number</code> and renders
+  it directly as text, so passing an object causes React to throw
+  <em>"Objects are not valid as a React child"</em>. I extracted the fix into a shared utility:
+</p>
+<pre>
+// src/utils/normalise.ts
+export function normaliseClasses(classes: unknown): number {
+  if (typeof classes === 'number') return classes;
+  if (classes && typeof classes === 'object' && !Array.isArray(classes))
+    return Object.keys(classes).length;
+  return 0;
+}
+</pre>
+<p>
+  The single-project detail endpoint has a different quirk: instead of a predictable key, it nests
+  the project under its own identifier:
+  <code>{ "pothole-detection-afafj": { "id": "...", "name": "..." } }</code>.
+  The <code>unwrapProjectDetail</code> utility finds the first key whose value is a non-array object
+  (ignoring <code>workspace</code>) and uses that as the project root.
 </p>
 <p>
-  Redmine similarly wraps collections: <code>{ issues: [...], total_count: N }</code>,
-  <code>{ trackers: [...] }</code> etc. The frontend API layer extracts the array from each wrapper,
-  so components always receive plain typed arrays and don't need to know about the envelope.
+  Redmine wraps collections too: <code>{ "trackers": [...] }</code>, <code>{ "issue_statuses": [...] }</code>,
+  <code>{ "issues": [...], "total_count": N }</code>. The frontend API layer unwraps each one before
+  returning, so React components always get plain arrays and a consistent
+  <code>{ data, total_count, offset, limit }</code> shape for paginated resources.
 </p>
 
-<h3>4.2 Image upload flow</h3>
+<h3>4.2 Image upload pipeline</h3>
 <p>
-  Images are uploaded as <code>multipart/form-data</code> from the browser, buffered in Multer's
-  memory store in the BFF, then forwarded to Roboflow's upload endpoint using a <code>FormData</code>
-  object reconstructed from the buffer. The split (train / valid / test) is sent as a form field
-  alongside the file. This avoids writing anything to disk.
+  The upload flow goes: browser <code>FormData</code> → Multer <code>memoryStorage</code> →
+  reconstructed <code>FormData</code> forwarded to Roboflow. The split assignment (train / valid / test)
+  is sent as a separate form field. The key implementation detail is that Multer gives back a
+  <code>Buffer</code> on <code>req.file.buffer</code>, which gets appended to a new
+  <code>form-data</code> instance alongside the filename and MIME type:
+</p>
+<pre>
+const fd = new FormData();
+fd.append('file', buffer, { filename, contentType: mimetype });
+fd.append('split', split);
+return roboflowClient.post(uploadUrl, fd, {
+  headers: { ...fd.getHeaders() },
+  params: { api_key: ROBOFLOW_API_KEY, name: filename, split },
+});
+</pre>
+<p>
+  Nothing touches the filesystem. The buffer lives in memory for the duration of the request and is
+  GC'd afterwards.
 </p>
 
-<h3>4.3 Inference</h3>
+<h3>4.3 Inference runner</h3>
 <p>
-  The inference page supports two source modes — workspace models and public Roboflow models. I
-  added this because my own workspace doesn't have a trained model yet (just raw annotated data),
-  so testing with a public rock-paper-scissors model was the only way to actually demonstrate the
-  inference flow end-to-end. The result is drawn onto a canvas element using the prediction
-  bounding boxes, and the run is saved to <code>localStorage</code> so it shows up in the dashboard.
+  Roboflow inference goes to <code>detect.roboflow.com/{project}/{version}</code>, not
+  <code>api.roboflow.com</code>. The endpoint accepts either a URL (passed as a query param
+  <code>?image=&lt;url&gt;</code>) or a raw image file as <code>multipart/form-data</code>. The
+  backend supports both; the frontend defaults to URL-based for convenience.
+</p>
+<p>
+  The response looks like:
+</p>
+<pre>
+{
+  "predictions": [
+    { "x": 320, "y": 240, "width": 100, "height": 80,
+      "confidence": 0.91, "class": "pothole" }
+  ],
+  "image": { "width": 640, "height": 480 }
+}
+</pre>
+<p>
+  Bounding boxes are drawn onto a <code>&lt;canvas&gt;</code> element laid over the source image.
+  Coordinates are in center-point format (x, y = centre of box), so the canvas draw call converts
+  them: <code>ctx.strokeRect(x - w/2, y - h/2, w, h)</code>.
+  Each completed run is appended to a <code>inferenceHistory</code> array in localStorage, storing
+  the detected class names, top confidence score, project ID, version, and timestamp. The dashboard
+  reads this array on mount to populate the "Recent Inference Runs" section.
+</p>
+<p>
+  The inference page also has a toggle between workspace models and public Roboflow models. My own
+  workspace only has unannotated raw data (no trained version), so I added public model support
+  specifically to demo the feature — the rock-paper-scissors model at
+  <code>rock-paper-scissors-sxsw/14</code> returns predictions reliably without needing a
+  trained workspace model.
 </p>
 
-<h3>4.4 Dashboard</h3>
+<h3>4.4 Dashboard data loading</h3>
 <p>
-  The dashboard pulls from four endpoints concurrently (Roboflow projects, Redmine projects, all issues
-  for charts, open issues count). The charts use Recharts — a bar chart for priority distribution and
-  a donut chart for status breakdown. Inference run history comes from localStorage rather than the
-  server, which keeps it fast but means it's per-browser.
+  The dashboard fires five queries on mount. TanStack Query runs them in parallel:
+</p>
+<pre>
+useQuery({ queryKey: ['roboflow-projects'],        queryFn: listRoboflowProjects })
+useQuery({ queryKey: ['redmine-projects'],         queryFn: listRedmineProjects })
+useQuery({ queryKey: ['redmine-issues-recent'],    queryFn: () => listIssues({ limit: 10 }) })
+useQuery({ queryKey: ['redmine-issues-open'],      queryFn: () => listIssues({ status_id: 'open', limit: 1 }) })
+useQuery({ queryKey: ['redmine-issues-all-chart'], queryFn: () => listIssues({ limit: 100 }) })
+</pre>
+<p>
+  The priority bar chart and status donut chart are derived via <code>useMemo</code> from the
+  all-issues result. Each chart entry is built by grouping issues by
+  <code>issue.priority.name</code> or <code>issue.status.name</code> and counting occurrences.
+  Colours are mapped from a static object keyed by name (e.g. <code>Urgent → #f97316</code>) so
+  the chart colours are consistent regardless of the order Redmine returns statuses.
 </p>
 
 <h2>5. Trade-offs and Limitations</h2>
 
-<h3>No authentication on the BFF</h3>
+<h3>No BFF authentication</h3>
 <p>
-  The Express server has no auth layer of its own. Anyone who can reach port 3001 can call the API.
-  This is fine for local development but would need to be addressed before any kind of shared
-  deployment. The straightforward fix would be to add a session/JWT middleware or put the whole
-  thing behind a reverse proxy with basic auth.
+  The Express server has no session or JWT layer. Any process that can reach port 3001 can query
+  either API through it. This is acceptable for a local setup but would need a middleware like
+  <code>express-jwt</code> or an API-gateway in front before any multi-user deployment. Roboflow
+  and Redmine credentials are protected only by the fact that they're not visible to the browser —
+  the BFF itself is open.
 </p>
 
-<h3>Inference history is client-side only</h3>
+<h3>Inference history stored in localStorage</h3>
 <p>
-  Inference runs are stored in <code>localStorage</code>, which means they don't persist across
-  browsers or devices and aren't queryable server-side. A small database table (even SQLite) would
-  fix this, but I decided it wasn't necessary for the scope of this project.
+  Each inference run is serialised to JSON and appended to <code>localStorage['inferenceHistory']</code>.
+  This means the history is per-browser, doesn't survive a cache clear, and can't be queried
+  server-side. The dashboard slice reading it is also computed client-side during render with no
+  loading state. A simple server-side log table (even SQLite) would fix persistence and make the
+  data shareable, but it was out of scope for this version.
 </p>
 
-<h3>Redmine running locally</h3>
+<h3>Redmine service URL is hardcoded to localhost</h3>
 <p>
-  The Redmine instance is a Docker container on localhost. The BFF talks to it via
-  <code>http://localhost:8080</code>. If the BFF were deployed to a remote server, this would break.
-  The Docker Compose file would need a proper service name reference instead of localhost.
+  <code>REDMINE_URL=http://localhost:8080</code> in <code>.env</code> means the BFF expects Redmine
+  on the same machine. In the Docker Compose setup this breaks if the BFF container tries to reach
+  localhost (which would be its own loopback, not the host). The Compose file would need
+  <code>REDMINE_URL=http://redmine:3000</code> using the service name. Currently the Compose setup
+  is included for the frontend/backend build pipeline but Redmine is expected to be started
+  separately.
 </p>
 
-<h3>No pagination on the frontend</h3>
+<h3>No frontend pagination</h3>
 <p>
-  The issues list fetches up to 50 records and the images grid fetches 24 at a time. There's no
-  "load more" or page navigation. For the pothole dataset (9000+ images) this is a significant
-  limitation — you're only ever seeing the first 24. Adding cursor or offset-based pagination would
-  be the main thing I'd fix if this were production.
+  The images grid fetches 24 images and the issues list fetches up to 50. Both the Roboflow and
+  Redmine APIs support offset-based pagination (<code>?offset=N&limit=N</code>), and the backend
+  already passes these through, but the frontend doesn't expose any "load more" controls. For the
+  pothole dataset with 9,000+ images, this means you're always looking at the same 24. It's the
+  most obvious missing piece for a production-grade version of this.
 </p>
 
-<h3>Roboflow upload to unversioned project</h3>
+<h2>6. Challenges Encountered</h2>
+
+<h3>Roboflow inference URL</h3>
 <p>
-  Images uploaded through the app go into the raw unversioned pool. Generating a new dataset version
-  (with preprocessing and augmentation) still has to be done in the Roboflow web UI. The API does
-  support version creation but the preprocessing config is complex enough that I didn't expose it in
-  this UI.
+  The Roboflow docs reference <code>api.roboflow.com/infer</code> in some places, but the actual
+  working inference endpoint is <code>detect.roboflow.com/{project}/{version}</code>. The original
+  frontend was sending requests to the wrong base URL, getting 404s. I diagnosed it by running
+  a direct cURL against both hosts with a test image and confirmed the correct endpoint through
+  trial and error. The backend now uses a separate <code>ROBOFLOW_INFER_BASE_URL</code> constant
+  pointing at <code>detect.roboflow.com</code>.
 </p>
 
-<h2>6. Challenges</h2>
-
+<h3>Redmine Docker image ships with no seed data</h3>
 <p>
-  <strong>Roboflow inference endpoint.</strong> The documented inference URL format changed between
-  API versions. The app originally built requests against <code>api.roboflow.com/infer</code> but
-  the actual working endpoint is on <code>detect.roboflow.com/{project}/{version}</code> with the
-  image sent as <code>multipart/form-data</code>. Took a bit of trial and error with cURL before I
-  got the right shape.
-</p>
-
-<p>
-  <strong>Redmine first-time setup.</strong> The official Redmine Docker image ships with no
-  trackers, issue statuses, or priorities configured — those are normally set up through the admin
-  UI wizard on first run. I automated the seed data using a Ruby script inside the container
-  (direct ActiveRecord calls) to avoid having to click through the setup manually every time the
-  container restarts.
-</p>
-
-<p>
-  <strong>React tree crashes from API shape mismatches.</strong> A few places in the component tree
-  were calling <code>.map()</code> on what they expected to be an array but was actually the
-  envelope object (e.g. <code>{ trackers: [...] }</code>). Because React has no error boundary by
-  default, this wiped the whole page. I fixed the root cause in the API layer and added an
-  <code>ErrorBoundary</code> so future issues show an error message instead of a blank screen.
-</p>
-
-<h2>7. What I Would Do Differently</h2>
-
-<ul>
-  <li>Add an auth layer from the start — even basic JWT middleware rather than nothing</li>
-  <li>Persist inference history server-side so it's shared across sessions</li>
-  <li>Write tests alongside features rather than at the end</li>
-  <li>Use a proper DB migration tool (Prisma or Drizzle) instead of relying on the host app's
-      schema — would make Redmine seed data reproducible without manual scripts</li>
-  <li>Add pagination to the image grid and issue list from day one; retrofitting it is more
-      work than building it initially</li>
-</ul>
-
-<h2>8. Repository and Setup</h2>
-<p>
-  Source: <code>https://github.com/meghnadh7/otto</code>
-</p>
-<p>
-  To run locally:
+  The official <code>redmine</code> Docker image starts with a blank database — no issue trackers,
+  no statuses, no priorities. Normally you'd go through the web admin wizard, but I needed it
+  scriptable. The Rails runner command requires <code>SECRET_KEY_BASE</code> set as an env variable
+  or it refuses to start. Once I had that, I could seed the data using ActiveRecord directly:
 </p>
 <pre>
-# 1. Clone and install
-git clone https://github.com/meghnadh7/otto.git
-cd otto
+docker exec -e SECRET_KEY_BASE=... redmine bash -c \
+  "RAILS_ENV=production bundle exec rails runner '
+    Tracker.create!(name: \"Bug\",     default_status: IssueStatus.find_by(name: \"New\"))
+    Tracker.create!(name: \"Feature\", default_status: IssueStatus.find_by(name: \"New\"))
+    ...
+  '"
+</pre>
 
-# 2. Add credentials
+<h3>Blank page from API shape mismatch</h3>
+<p>
+  Several frontend components were calling <code>.map()</code> on query results typed as
+  <code>T[]</code>, but the actual data returned from the BFF was still the envelope object
+  (e.g. <code>{ trackers: [...] }</code> instead of the array directly). Because the optional
+  chaining in <code>statuses?.map(...)</code> only guards against <code>null</code>/<code>undefined</code>,
+  it still tried to call <code>.map</code> on a plain object — which is <code>undefined</code> on
+  objects — and threw <code>TypeError: statuses.map is not a function</code>. Without a React
+  error boundary, this crash propagated up and unmounted the entire tree, leaving a blank page
+  with no visible error.
+</p>
+<p>
+  The fix was two-part: normalise the unwrapping in the frontend API layer (each function now
+  extracts the array from the envelope before returning), and add an <code>ErrorBoundary</code>
+  component wrapping the router so future crashes show an error message instead of a blank screen.
+</p>
+
+<h2>7. Testing</h2>
+<p>
+  Tests are in <code>backend/src/__tests__/</code> using Jest + ts-jest + Supertest. There are
+  three suites:
+</p>
+<ul>
+  <li><strong>normalise.test.ts</strong> — 16 unit tests covering <code>normaliseClasses</code>,
+      <code>normaliseProject</code>, <code>unwrapProjectDetail</code>, and
+      <code>normalisePaginatedIssues</code>. These run with no external dependencies.</li>
+  <li><strong>roboflow.route.test.ts</strong> — 5 integration tests for the Roboflow routes using
+      a mock of the service layer. Covers the workspace envelope unwrapping, classes normalisation,
+      and error forwarding.</li>
+  <li><strong>redmine.route.test.ts</strong> — 6 integration tests for the Redmine routes, checking
+      the issues envelope normalisation, query param forwarding, and error cases.</li>
+</ul>
+<p>
+  The service layer is mocked at the module level with <code>jest.mock('../services/...')</code>,
+  so no real HTTP calls are made during tests. The <code>npm test</code> script is also wired into
+  the GitHub Actions CI job, so tests run on every push.
+</p>
+<p>
+  Writing the tests retroactively (after building the feature) uncovered one real bug:
+  <code>unwrapProjectDetail</code> was picking the first key from the response object regardless
+  of whether its value was actually a nested project object — it would have matched a string-valued
+  key like <code>"id"</code> and tried to use <code>"ws/project-name"</code> as a project record.
+  The test for the fallback case caught this; the fix was to only select keys whose value is a
+  non-array object.
+</p>
+
+<h2>8. Tools and AI Assistance</h2>
+<p>
+  I used <strong>Gemini Pro</strong> as an AI coding assistant throughout this project for several
+  things:
+</p>
+<ul>
+  <li><strong>Boilerplate and scaffolding</strong> — initial Express route structure, TanStack Query
+      hook patterns, and Tailwind component layout. Having it generate the skeleton let me focus on
+      the integration-specific logic rather than writing repetitive setup code.</li>
+  <li><strong>Frontend design decisions</strong> — dark theme colour palette, card layout, table
+      vs grid choices per section. I'd describe what I needed and iterate on the output; most of
+      the Tailwind class combinations in the components came from those back-and-forths.</li>
+  <li><strong>Bug investigation</strong> — when the dashboard was showing a blank page and I
+      couldn't immediately see why, describing the symptom ("whole page blank, no console error
+      visible") to Gemini helped narrow it down to the missing React <code>ErrorBoundary</code> and
+      the <code>.map()</code> on a non-array from the API response. I then traced through the actual
+      code to confirm and fix it.</li>
+  <li><strong>Minor things</strong> — regex for input validation, SVG path syntax for the
+      bounding-box canvas draw, the correct Redmine API parameter name for filtering open issues
+      (<code>status_id=open</code> rather than a numeric ID).</li>
+</ul>
+<p>
+  The core integration logic — BFF route structure, Roboflow response normalisation, the
+  multipart upload pipeline, Redmine seed setup inside Docker — was written and debugged by hand.
+  Gemini was most useful as a fast reference and first-draft generator rather than as a
+  complete solution provider.
+</p>
+
+<h2>9. What I Would Do Differently</h2>
+<ul>
+  <li>Add authentication to the BFF from day one — even a simple JWT check on
+      <code>Authorization: Bearer ...</code> header would stop the API being open to anyone on
+      the network</li>
+  <li>Store inference runs in a server-side table rather than localStorage; would also let
+      the dashboard show history across devices and make runs queryable</li>
+  <li>Add offset-based pagination to the image grid and issue list before the first demo —
+      retrofitting pagination into components that weren't designed for it is more work</li>
+  <li>Write tests for each feature as it was built rather than at the end; the
+      <code>unwrapProjectDetail</code> bug above would have been caught immediately</li>
+  <li>Fix the Docker Compose setup so Redmine is included as a service with the correct
+      internal URL, rather than relying on it being started separately on the host</li>
+</ul>
+
+<h2>10. Repository and Setup</h2>
+<p>Source: <code>https://github.com/meghnadh7/otto</code></p>
+<pre>
+# Clone and install
+git clone https://github.com/meghnadh7/otto.git && cd otto
+
+# Credentials — copy and fill in ROBOFLOW_API_KEY, ROBOFLOW_WORKSPACE,
+# REDMINE_URL, REDMINE_API_KEY
 cp backend/.env.example backend/.env
-# Edit backend/.env: ROBOFLOW_API_KEY, ROBOFLOW_WORKSPACE, REDMINE_API_KEY
 
-# 3. Start Redmine
+# Start Redmine (first time: run the seed script in the container)
 docker run -d --name redmine -p 8080:3000 redmine
 
-# 4. Start backend + frontend
-cd backend && npm install && npm run dev
-cd ../frontend && npm install && npm run dev
+# Run backend and frontend in separate terminals
+cd backend  && npm install && npm run dev   # → localhost:3001
+cd frontend && npm install && npm run dev   # → localhost:3000
 </pre>
-<p>
-  Or with Docker Compose (builds both services):
-</p>
-<pre>docker compose up --build</pre>
+<p>Run tests:</p>
+<pre>cd backend && npm test</pre>
 
 </body>
 </html>
