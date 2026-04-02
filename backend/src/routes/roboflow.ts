@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { AxiosError } from 'axios';
 import * as roboflowService from '../services/roboflow.service';
+import { normaliseProject, unwrapProjectDetail } from '../utils/normalise';
 
 const router = Router();
 
@@ -27,13 +28,7 @@ router.get('/projects', async (_req: Request, res: Response) => {
     // Roboflow returns { workspace: { ..., projects: [] } } — normalise to { projects: [] }
     const data = response.data as { workspace?: { projects?: Record<string, unknown>[] } };
     const rawProjects = data?.workspace?.projects ?? (response.data as { projects?: Record<string, unknown>[] }).projects ?? [];
-    // Normalise: classes may be an object (class→count map) — convert to a count number
-    const projects = rawProjects.map((p) => ({
-      ...p,
-      classes: p.classes && typeof p.classes === 'object' && !Array.isArray(p.classes)
-        ? Object.keys(p.classes as object).length
-        : p.classes,
-    }));
+    const projects = rawProjects.map(normaliseProject);
     res.status(response.status).json({ projects });
   } catch (err) {
     handleError(err, res);
@@ -45,13 +40,7 @@ router.get('/projects', async (_req: Request, res: Response) => {
 router.get('/projects/:projectId', async (req: Request, res: Response) => {
   try {
     const response = await roboflowService.getProject(req.params.projectId);
-    const d = response.data as Record<string, unknown>;
-    // Roboflow wraps the project under its own ID key — unwrap to a flat project object
-    const projectKey = Object.keys(d).find((k) => k !== 'workspace');
-    const project: Record<string, unknown> = projectKey ? (d[projectKey] as Record<string, unknown>) : d;
-    if (project.classes && typeof project.classes === 'object' && !Array.isArray(project.classes)) {
-      project.classes = Object.keys(project.classes as object).length;
-    }
+    const project = unwrapProjectDetail(response.data as Record<string, unknown>);
     res.status(response.status).json(project);
   } catch (err) {
     handleError(err, res);

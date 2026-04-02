@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { AxiosError } from 'axios';
 import * as redmineService from '../services/redmine.service';
+import { normalisePaginatedIssues } from '../utils/normalise';
 
 const router = Router();
 
@@ -93,14 +94,8 @@ router.get('/issues', async (req: Request, res: Response) => {
     if (req.query.sort) params.sort = req.query.sort as string;
 
     const response = await redmineService.listAllIssues(params);
-    // Normalise to PaginatedResponse shape the frontend expects
     const raw = response.data as { issues?: unknown[]; total_count?: number; offset?: number; limit?: number };
-    res.status(response.status).json({
-      data: raw.issues ?? [],
-      total_count: raw.total_count ?? 0,
-      offset: raw.offset ?? 0,
-      limit: raw.limit ?? 25,
-    });
+    res.status(response.status).json(normalisePaginatedIssues(raw));
   } catch (err) {
     handleError(err, res);
   }

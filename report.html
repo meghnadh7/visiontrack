@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VisionTrack – Technical Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Georgia', serif;
+    font-size: 11.5pt;
+    line-height: 1.65;
+    color: #1a1a1a;
+    background: #fff;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 40px;
+  }
+  h1 { font-size: 22pt; font-weight: bold; margin-bottom: 4px; }
+  h2 { font-size: 14pt; font-weight: bold; margin: 28px 0 8px; border-bottom: 1.5px solid #ccc; padding-bottom: 4px; }
+  h3 { font-size: 11.5pt; font-weight: bold; margin: 16px 0 4px; }
+  p { margin-bottom: 10px; }
+  ul, ol { margin: 6px 0 10px 22px; }
+  li { margin-bottom: 4px; }
+  .meta { font-size: 10pt; color: #555; margin-bottom: 32px; }
+  .meta span { margin-right: 18px; }
+  code {
+    font-family: 'Courier New', monospace;
+    font-size: 10pt;
+    background: #f3f3f3;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid #e0e0e0;
+  }
+  pre {
+    background: #f7f7f7;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 10px 0 14px;
+    font-size: 9.5pt;
+    font-family: 'Courier New', monospace;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .arch-box {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 12px 0 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 9.5pt;
+    line-height: 1.7;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 16px;
+    font-size: 10.5pt;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 7px 10px;
+    text-align: left;
+  }
+  th { background: #f0f0f0; font-weight: bold; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .note {
+    background: #fffbea;
+    border-left: 3px solid #e8c840;
+    padding: 8px 12px;
+    margin: 10px 0;
+    font-size: 10.5pt;
+    font-style: italic;
+  }
+  @media print {
+    body { padding: 24px 28px; font-size: 11pt; }
+    h1 { page-break-after: avoid; }
+    h2, h3 { page-break-after: avoid; }
+    pre, table { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>VisionTrack – Technical Report</h1>
+<div class="meta">
+  <span>Meghnadh Bijnapally</span>
+  <span>meghnadh007@gmail.com</span>
+  <span>April 2026</span>
+</div>
+
+<h2>1. Project Overview</h2>
+<p>
+  VisionTrack is a unified web dashboard I built to bridge two separate tools I was already using in
+  my workflow — Roboflow for managing computer vision datasets and Redmine for tracking project issues.
+  The idea was pretty simple: instead of switching between two browser tabs constantly, have one
+  interface that lets me view datasets, run inference, and see which issues are open, all in one place.
+</p>
+<p>
+  The app ended up with five main areas: a dashboard overview, Roboflow project and image management,
+  an inference runner, and Redmine project/issue tracking with a members panel. There's also a GitHub
+  Actions CI pipeline and Docker setup for both services.
+</p>
+
+<h2>2. Architecture</h2>
+<p>
+  I went with a Backend-for-Frontend (BFF) pattern. The React app never talks to Roboflow or Redmine
+  directly — everything goes through an Express proxy that handles auth headers and any response
+  normalisation. This kept API keys off the client entirely.
+</p>
+
+<div class="arch-box">
+Browser (React + Vite)
+        │
+        │  HTTP  /api/*
+        ▼
+Express BFF  (Node 20, TypeScript)
+   ├── /api/roboflow/*  ──────▶  api.roboflow.com  (API key in query param)
+   └── /api/redmine/*   ──────▶  Redmine instance  (X-Redmine-API-Key header)
+
+Redmine runs in a Docker container on port 8080 (SQLite storage).
+</div>
+
+<p>
+  One thing I didn't anticipate upfront: the Roboflow workspace endpoint wraps its project list
+  inside a <code>workspace</code> object, and the <code>classes</code> field is a name→count map
+  rather than a plain integer. I had to normalise both of these in the BFF before sending to the
+  client, which is exactly the kind of thing a BFF is useful for.
+</p>
+
+<h2>3. Tech Stack</h2>
+
+<table>
+  <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Frontend framework</td><td>React 18 + TypeScript</td><td>Comfortable with it, strong ecosystem, hooks make async state easy</td></tr>
+    <tr><td>Build tool</td><td>Vite</td><td>Much faster HMR than CRA, native ESM</td></tr>
+    <tr><td>Styling</td><td>Tailwind CSS</td><td>Utility-first keeps styles colocated with markup, no context switching</td></tr>
+    <tr><td>Data fetching</td><td>TanStack Query v5</td><td>Built-in caching, loading/error states, query invalidation — removes a lot of boilerplate</td></tr>
+    <tr><td>Charts</td><td>Recharts</td><td>Composable, SVG-based, good TypeScript types</td></tr>
+    <tr><td>Backend</td><td>Node.js + Express + TypeScript</td><td>Lightweight, enough for a proxy/BFF, familiar</td></tr>
+    <tr><td>File uploads</td><td>Multer (memoryStorage)</td><td>Buffers in memory so they can be forwarded directly to Roboflow without a temp file</td></tr>
+    <tr><td>Containerisation</td><td>Docker + Docker Compose</td><td>Reproducible environment, Redmine has an official image</td></tr>
+    <tr><td>CI</td><td>GitHub Actions</td><td>Free for public repos, simple YAML config</td></tr>
+  </tbody>
+</table>
+
+<h2>4. Key Implementation Details</h2>
+
+<h3>4.1 BFF response normalisation</h3>
+<p>
+  Both upstream APIs have some quirks. Roboflow's workspace list endpoint wraps everything in
+  <code>{ workspace: { projects: [...] } }</code>, and the classes field per-project is an object
+  like <code>{ pothole: 638, porthole: 75 }</code>. The single-project detail endpoint nests the
+  project under its own identifier as the key (e.g. <code>{ "new-pothole-detection": { ... } }</code>).
+  All of this gets flattened in the BFF so the frontend just sees a consistent
+  <code>{ projects: [...] }</code> shape with <code>classes</code> as a number.
+</p>
+<p>
+  Redmine similarly wraps collections: <code>{ issues: [...], total_count: N }</code>,
+  <code>{ trackers: [...] }</code> etc. The frontend API layer extracts the array from each wrapper,
+  so components always receive plain typed arrays and don't need to know about the envelope.
+</p>
+
+<h3>4.2 Image upload flow</h3>
+<p>
+  Images are uploaded as <code>multipart/form-data</code> from the browser, buffered in Multer's
+  memory store in the BFF, then forwarded to Roboflow's upload endpoint using a <code>FormData</code>
+  object reconstructed from the buffer. The split (train / valid / test) is sent as a form field
+  alongside the file. This avoids writing anything to disk.
+</p>
+
+<h3>4.3 Inference</h3>
+<p>
+  The inference page supports two source modes — workspace models and public Roboflow models. I
+  added this because my own workspace doesn't have a trained model yet (just raw annotated data),
+  so testing with a public rock-paper-scissors model was the only way to actually demonstrate the
+  inference flow end-to-end. The result is drawn onto a canvas element using the prediction
+  bounding boxes, and the run is saved to <code>localStorage</code> so it shows up in the dashboard.
+</p>
+
+<h3>4.4 Dashboard</h3>
+<p>
+  The dashboard pulls from four endpoints concurrently (Roboflow projects, Redmine projects, all issues
+  for charts, open issues count). The charts use Recharts — a bar chart for priority distribution and
+  a donut chart for status breakdown. Inference run history comes from localStorage rather than the
+  server, which keeps it fast but means it's per-browser.
+</p>
+
+<h2>5. Trade-offs and Limitations</h2>
+
+<h3>No authentication on the BFF</h3>
+<p>
+  The Express server has no auth layer of its own. Anyone who can reach port 3001 can call the API.
+  This is fine for local development but would need to be addressed before any kind of shared
+  deployment. The straightforward fix would be to add a session/JWT middleware or put the whole
+  thing behind a reverse proxy with basic auth.
+</p>
+
+<h3>Inference history is client-side only</h3>
+<p>
+  Inference runs are stored in <code>localStorage</code>, which means they don't persist across
+  browsers or devices and aren't queryable server-side. A small database table (even SQLite) would
+  fix this, but I decided it wasn't necessary for the scope of this project.
+</p>
+
+<h3>Redmine running locally</h3>
+<p>
+  The Redmine instance is a Docker container on localhost. The BFF talks to it via
+  <code>http://localhost:8080</code>. If the BFF were deployed to a remote server, this would break.
+  The Docker Compose file would need a proper service name reference instead of localhost.
+</p>
+
+<h3>No pagination on the frontend</h3>
+<p>
+  The issues list fetches up to 50 records and the images grid fetches 24 at a time. There's no
+  "load more" or page navigation. For the pothole dataset (9000+ images) this is a significant
+  limitation — you're only ever seeing the first 24. Adding cursor or offset-based pagination would
+  be the main thing I'd fix if this were production.
+</p>
+
+<h3>Roboflow upload to unversioned project</h3>
+<p>
+  Images uploaded through the app go into the raw unversioned pool. Generating a new dataset version
+  (with preprocessing and augmentation) still has to be done in the Roboflow web UI. The API does
+  support version creation but the preprocessing config is complex enough that I didn't expose it in
+  this UI.
+</p>
+
+<h2>6. Challenges</h2>
+
+<p>
+  <strong>Roboflow inference endpoint.</strong> The documented inference URL format changed between
+  API versions. The app originally built requests against <code>api.roboflow.com/infer</code> but
+  the actual working endpoint is on <code>detect.roboflow.com/{project}/{version}</code> with the
+  image sent as <code>multipart/form-data</code>. Took a bit of trial and error with cURL before I
+  got the right shape.
+</p>
+
+<p>
+  <strong>Redmine first-time setup.</strong> The official Redmine Docker image ships with no
+  trackers, issue statuses, or priorities configured — those are normally set up through the admin
+  UI wizard on first run. I automated the seed data using a Ruby script inside the container
+  (direct ActiveRecord calls) to avoid having to click through the setup manually every time the
+  container restarts.
+</p>
+
+<p>
+  <strong>React tree crashes from API shape mismatches.</strong> A few places in the component tree
+  were calling <code>.map()</code> on what they expected to be an array but was actually the
+  envelope object (e.g. <code>{ trackers: [...] }</code>). Because React has no error boundary by
+  default, this wiped the whole page. I fixed the root cause in the API layer and added an
+  <code>ErrorBoundary</code> so future issues show an error message instead of a blank screen.
+</p>
+
+<h2>7. What I Would Do Differently</h2>
+
+<ul>
+  <li>Add an auth layer from the start — even basic JWT middleware rather than nothing</li>
+  <li>Persist inference history server-side so it's shared across sessions</li>
+  <li>Write tests alongside features rather than at the end</li>
+  <li>Use a proper DB migration tool (Prisma or Drizzle) instead of relying on the host app's
+      schema — would make Redmine seed data reproducible without manual scripts</li>
+  <li>Add pagination to the image grid and issue list from day one; retrofitting it is more
+      work than building it initially</li>
+</ul>
+
+<h2>8. Repository and Setup</h2>
+<p>
+  Source: <code>https://github.com/meghnadh7/otto</code>
+</p>
+<p>
+  To run locally:
+</p>
+<pre>
+# 1. Clone and install
+git clone https://github.com/meghnadh7/otto.git
+cd otto
+
+# 2. Add credentials
+cp backend/.env.example backend/.env
+# Edit backend/.env: ROBOFLOW_API_KEY, ROBOFLOW_WORKSPACE, REDMINE_API_KEY
+
+# 3. Start Redmine
+docker run -d --name redmine -p 8080:3000 redmine
+
+# 4. Start backend + frontend
+cd backend && npm install && npm run dev
+cd ../frontend && npm install && npm run dev
+</pre>
+<p>
+  Or with Docker Compose (builds both services):
+</p>
+<pre>docker compose up --build</pre>
+
+</body>
+</html>
