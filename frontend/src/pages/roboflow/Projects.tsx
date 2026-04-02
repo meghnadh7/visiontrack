@@ -102,7 +102,7 @@ export default function RoboflowProjects() {
           {filtered.map((project) => (
             <Link
               key={project.id}
-              to={`/roboflow/projects/${project.id}`}
+              to={`/roboflow/projects/${encodeURIComponent(project.id)}`}
               className="card group hover:border-gray-700 transition-all duration-150 hover:glow-blue"
             >
               <div className="card-body">

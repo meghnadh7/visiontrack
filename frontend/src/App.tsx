@@ -49,7 +49,7 @@ export default function App() {
 
           {/* Roboflow routes */}
           <Route path="/roboflow/projects" element={<RoboflowProjects />} />
-          <Route path="/roboflow/projects/:projectId" element={<RoboflowProjectDetail />} />
+          <Route path="/roboflow/projects/:projectId/*" element={<RoboflowProjectDetail />} />
           <Route path="/roboflow/inference" element={<RoboflowInference />} />
 
           {/* Redmine routes */}
