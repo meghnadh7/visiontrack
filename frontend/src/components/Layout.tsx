@@ -11,7 +11,10 @@ import {
   X,
   Layers,
   Eye,
+  LogOut,
+  User,
 } from 'lucide-react'
+import { useAuth } from '../auth/AuthProvider'
 
 interface NavSection {
   label: string
@@ -60,6 +63,7 @@ const navSections: NavSection[] = [
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const location = useLocation()
+  const { fullName, username, email, logout } = useAuth()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     Roboflow: true,
     Redmine: true,
@@ -177,9 +181,26 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-3 border-t border-gray-800">
-        <p className="text-xs text-gray-600">VisionTrack v1.0.0</p>
+      {/* Footer — user info + logout */}
+      <div className="px-4 py-3 border-t border-gray-800 space-y-2">
+        {(fullName || username || email) && (
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-blue-700 flex items-center justify-center flex-shrink-0">
+              <User size={13} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-300 truncate">{fullName ?? username}</p>
+              {email && <p className="text-xs text-gray-500 truncate">{email}</p>}
+            </div>
+          </div>
+        )}
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-md transition-colors"
+        >
+          <LogOut size={13} />
+          <span>Sign out</span>
+        </button>
       </div>
     </div>
   )

@@ -5,6 +5,8 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import roboflowRouter from './routes/roboflow';
 import redmineRouter from './routes/redmine';
+import authRouter from './routes/auth';
+import { requireAuth } from './middleware/auth';
 
 const app: Application = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
@@ -33,11 +35,14 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Auth routes: /api/auth/... (provision endpoint)
+app.use('/api/auth', authRouter);
+
 // Roboflow routes: /api/roboflow/...
-app.use('/api/roboflow', roboflowRouter);
+app.use('/api/roboflow', requireAuth, roboflowRouter);
 
 // Redmine routes: /api/redmine/...
-app.use('/api/redmine', redmineRouter);
+app.use('/api/redmine', requireAuth, redmineRouter);
 
 // ---- 404 Handler ----
 app.use((_req: Request, res: Response) => {
