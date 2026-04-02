@@ -136,9 +136,9 @@ function ImageCard({ image, projectId }: { image: RoboflowImage; projectId: stri
 type Tab = 'versions' | 'images'
 
 export default function RoboflowProjectDetail() {
-  const { projectId: rawProjectId, '*': rest } = useParams<{ projectId: string; '*': string }>()
-  // Roboflow project IDs are "workspace/project" — reconstruct from encoded URL param + wildcard
-  const projectId = rest ? `${rawProjectId}/${rest}` : decodeURIComponent(rawProjectId ?? '')
+  const { projectId: rawProjectId } = useParams<{ projectId: string }>()
+  // Roboflow project IDs are "workspace/project" — URL uses "--" as separator
+  const projectId = rawProjectId?.replace('--', '/') ?? ''
   const [activeTab, setActiveTab] = useState<Tab>('versions')
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   const [uploadError, setUploadError] = useState<string | null>(null)

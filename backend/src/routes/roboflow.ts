@@ -35,11 +35,12 @@ router.get('/projects', async (_req: Request, res: Response) => {
   }
 });
 
-// GET /api/roboflow/projects/:projectId
-// Get details for a specific project
-router.get('/projects/:projectId', async (req: Request, res: Response) => {
+// GET /api/roboflow/projects/:workspace/:project
+// Get details for a specific project (project IDs are workspace/project)
+router.get('/projects/:workspace/:project', async (req: Request, res: Response) => {
   try {
-    const response = await roboflowService.getProject(req.params.projectId);
+    const projectId = `${req.params.workspace}/${req.params.project}`;
+    const response = await roboflowService.getProject(projectId);
     const project = unwrapProjectDetail(response.data as Record<string, unknown>);
     res.status(response.status).json(project);
   } catch (err) {
@@ -47,13 +48,13 @@ router.get('/projects/:projectId', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/roboflow/projects/:projectId/versions
-// List all versions for a project
+// GET /api/roboflow/projects/:workspace/:project/versions
 router.get(
-  '/projects/:projectId/versions',
+  '/projects/:workspace/:project/versions',
   async (req: Request, res: Response) => {
     try {
-      const response = await roboflowService.listVersions(req.params.projectId);
+      const projectId = `${req.params.workspace}/${req.params.project}`;
+      const response = await roboflowService.listVersions(projectId);
       res.status(response.status).json(response.data);
     } catch (err) {
       handleError(err, res);
@@ -61,16 +62,13 @@ router.get(
   }
 );
 
-// POST /api/roboflow/projects/:projectId/versions
-// Create a new dataset version
+// POST /api/roboflow/projects/:workspace/:project/versions
 router.post(
-  '/projects/:projectId/versions',
+  '/projects/:workspace/:project/versions',
   async (req: Request, res: Response) => {
     try {
-      const response = await roboflowService.createVersion(
-        req.params.projectId,
-        req.body
-      );
+      const projectId = `${req.params.workspace}/${req.params.project}`;
+      const response = await roboflowService.createVersion(projectId, req.body);
       res.status(response.status).json(response.data);
     } catch (err) {
       handleError(err, res);
@@ -78,16 +76,13 @@ router.post(
   }
 );
 
-// POST /api/roboflow/projects/:projectId/images
-// Upload an image to the project.
-// Accepts a multipart/form-data file (field: "image") plus an optional "split" field.
-// Also accepts an optional query param ?url=... to upload by URL instead of file.
+// POST /api/roboflow/projects/:workspace/:project/images
 router.post(
-  '/projects/:projectId/images',
+  '/projects/:workspace/:project/images',
   upload.single('image'),
   async (req: Request, res: Response) => {
     try {
-      const { projectId } = req.params;
+      const projectId = `${req.params.workspace}/${req.params.project}`;
       const split: string = (req.body.split as string) || 'train';
       const imageUrl: string | undefined = req.query.url as string | undefined;
 
@@ -132,17 +127,14 @@ router.post(
   }
 );
 
-// GET /api/roboflow/projects/:projectId/images
-// List images in a project. Optional query param: ?split=train|valid|test
+// GET /api/roboflow/projects/:workspace/:project/images
 router.get(
-  '/projects/:projectId/images',
+  '/projects/:workspace/:project/images',
   async (req: Request, res: Response) => {
     try {
+      const projectId = `${req.params.workspace}/${req.params.project}`;
       const split = req.query.split as string | undefined;
-      const response = await roboflowService.listImages(
-        req.params.projectId,
-        split
-      );
+      const response = await roboflowService.listImages(projectId, split);
       res.status(response.status).json(response.data);
     } catch (err) {
       handleError(err, res);
@@ -150,16 +142,13 @@ router.get(
   }
 );
 
-// GET /api/roboflow/projects/:projectId/images/:imageId
-// Get a specific image with its annotations
+// GET /api/roboflow/projects/:workspace/:project/images/:imageId
 router.get(
-  '/projects/:projectId/images/:imageId',
+  '/projects/:workspace/:project/images/:imageId',
   async (req: Request, res: Response) => {
     try {
-      const response = await roboflowService.getImage(
-        req.params.projectId,
-        req.params.imageId
-      );
+      const projectId = `${req.params.workspace}/${req.params.project}`;
+      const response = await roboflowService.getImage(projectId, req.params.imageId);
       res.status(response.status).json(response.data);
     } catch (err) {
       handleError(err, res);
