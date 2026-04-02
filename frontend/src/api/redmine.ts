@@ -199,8 +199,8 @@ export async function createIssue(payload: CreateIssuePayload): Promise<RedmineI
 }
 
 export async function getIssue(issueId: string | number): Promise<RedmineIssue> {
-  const { data } = await client.get<RedmineIssue>(`/redmine/issues/${issueId}`)
-  return data
+  const { data } = await client.get<{ issue: RedmineIssue } | RedmineIssue>(`/redmine/issues/${issueId}`)
+  return (data as { issue: RedmineIssue }).issue ?? (data as RedmineIssue)
 }
 
 export interface UpdateIssuePayload extends Partial<CreateIssuePayload> {
