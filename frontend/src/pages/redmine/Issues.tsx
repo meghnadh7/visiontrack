@@ -99,9 +99,8 @@ function CreateIssueModal({
     e.preventDefault()
     if (!validate()) return
 
-    const numericProjectId = typeof projectId === 'string' ? parseInt(projectId, 10) : projectId
     mutation.mutate({
-      project_id: numericProjectId,
+      project_id: projectId,
       subject: form.subject,
       description: form.description || undefined,
       tracker_id: form.tracker_id ? Number(form.tracker_id) : undefined,

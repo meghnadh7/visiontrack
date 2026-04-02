@@ -86,16 +86,35 @@ export async function uploadImageFormData(
   );
 }
 
-// List images in a project
+// List images in a project using Roboflow's search endpoint
 export async function listImages(
   projectId: string,
-  split?: string
+  split?: string,
+  page: number = 0,
+  perPage: number = 20
 ): Promise<AxiosResponse> {
-  const params: Record<string, string> = {};
-  if (split) params['split'] = split;
-  return roboflowClient.get(`/${projectId}/images`, {
-    params,
-  });
+  const body: Record<string, unknown> = {
+    limit: perPage,
+    offset: page * perPage,
+  };
+  if (split) body['split'] = split;
+
+  const response = await roboflowClient.post(`/${projectId}/search`, body);
+
+  // Normalise: attach thumb URLs using source.roboflow.com pattern
+  if (response.data?.results) {
+    response.data.images = response.data.results.map((img: Record<string, unknown>) => ({
+      id: img.id,
+      name: String(img.id),
+      split: img.split,
+      annotated: (img.annotations as Record<string, unknown>)?.count ?? 0,
+      thumb: `https://source.roboflow.com/${img.owner}/${img.id}/thumb.jpg`,
+      original: `https://source.roboflow.com/${img.owner}/${img.id}/original.jpg`,
+    }));
+    response.data.total = response.data.total ?? response.data.results.length;
+  }
+
+  return response;
 }
 
 // Get a specific image with annotations
@@ -103,7 +122,7 @@ export async function getImage(
   projectId: string,
   imageId: string
 ): Promise<AxiosResponse> {
-  return roboflowClient.get(`/${projectId}/images/${imageId}`);
+  return roboflowClient.get(`/${projectId}/${imageId}`);
 }
 
 // Run inference on an image file (multipart)

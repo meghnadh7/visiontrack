@@ -358,8 +358,8 @@ function RedmineModal({
 export default function RoboflowInference() {
   // Model source toggle
   const [modelSource, setModelSource] = useState<'workspace' | 'public'>('workspace')
-  const [publicModelId, setPublicModelId] = useState<string>('rock-paper-scissors-sxsw')
-  const [publicModelVersion, setPublicModelVersion] = useState<string>('14')
+  const [publicModelId, setPublicModelId] = useState<string>('new-pothole-detection')
+  const [publicModelVersion, setPublicModelVersion] = useState<string>('1')
 
   // Input state
   const [selectedProject, setSelectedProject] = useState<string>('')
@@ -806,9 +806,8 @@ export default function RoboflowInference() {
                   />
                 </div>
                 <p className="text-xs text-gray-500">
-                  Use any public model from{' '}
-                  <span className="text-blue-400">universe.roboflow.com</span>. The default is a
-                  rock-paper-scissors detector — just upload a hand photo to try it.
+                  Default is <span className="text-blue-400">new-pothole-detection v1</span> — a
+                  public Smartathon model that detects potholes at ~91% confidence.
                 </p>
               </>
             )}
