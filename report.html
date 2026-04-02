@@ -591,10 +591,15 @@ docker exec -e SECRET_KEY_BASE=... redmine bash -c \
       (<code>status_id=open</code> rather than a numeric ID).</li>
 </ul>
 <p>
+  I also used <strong>GitHub Copilot</strong> for minor things inline while writing code —
+  completing repetitive function signatures, filling in straightforward utility helpers, and
+  suggesting fixes for small syntax or type errors without needing to leave the editor.
+</p>
+<p>
   The core integration logic — BFF route structure, Roboflow response normalisation, the
   multipart upload pipeline, Redmine seed setup inside Docker — was written and debugged by hand.
-  Gemini was most useful as a fast reference and first-draft generator rather than as a
-  complete solution provider.
+  Both tools were most useful as fast references and first-draft generators rather than as
+  complete solution providers.
 </p>
 
 <h2>10. What I Would Do Differently</h2>
