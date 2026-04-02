@@ -40,7 +40,8 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 
 function JournalEntry({ journal }: { journal: RedmineJournal }) {
   const hasNotes = !!journal.notes?.trim()
-  const hasDetails = journal.details.length > 0
+  const details = journal.details ?? []
+  const hasDetails = details.length > 0
 
   if (!hasNotes && !hasDetails) return null
 
@@ -62,7 +63,7 @@ function JournalEntry({ journal }: { journal: RedmineJournal }) {
 
         {hasDetails && (
           <div className="space-y-1 mb-2">
-            {journal.details.map((detail, idx) => (
+            {details.map((detail, idx) => (
               <p key={idx} className="text-xs text-gray-500">
                 Changed <span className="text-gray-400 font-medium">{detail.name}</span>
                 {detail.old_value && (
@@ -303,7 +304,7 @@ export default function RedmineIssueDetail() {
               <span className="font-mono text-sm text-gray-500">#{issue.id}</span>
               <IssueStatusBadge status={issue.status} />
               <PriorityBadge priority={issue.priority} />
-              <span className="tag">{issue.tracker.name}</span>
+              {issue.tracker && <span className="tag">{issue.tracker.name}</span>}
             </div>
             <h1 className="text-xl font-bold text-white leading-snug">{issue.subject}</h1>
           </div>
@@ -427,7 +428,7 @@ export default function RedmineIssueDetail() {
               <InfoRow label="Tracker">
                 <span className="flex items-center gap-1.5">
                   <Tag size={12} className="text-gray-500" />
-                  {issue.tracker.name}
+                  {issue.tracker?.name ?? '—'}
                 </span>
               </InfoRow>
 
@@ -442,7 +443,7 @@ export default function RedmineIssueDetail() {
               <InfoRow label="Author">
                 <span className="flex items-center gap-1.5">
                   <User size={12} className="text-gray-500" />
-                  {issue.author.name}
+                  {issue.author?.name ?? '—'}
                 </span>
               </InfoRow>
 

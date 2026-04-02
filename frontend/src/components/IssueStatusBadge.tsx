@@ -52,6 +52,7 @@ function getStatusDot(name: string): string {
 }
 
 export default function IssueStatusBadge({ status, className = '' }: IssueStatusBadgeProps) {
+  if (!status) return null
   const name = typeof status === 'string' ? status : status.name
   const style = getStatusStyle(name)
   const dot = getStatusDot(name)

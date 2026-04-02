@@ -68,6 +68,7 @@ export default function PriorityBadge({
   showIcon = true,
   className = '',
 }: PriorityBadgeProps) {
+  if (!priority) return null
   const name = typeof priority === 'string' ? priority : priority.name
   const config = getPriorityConfig(name)
 
