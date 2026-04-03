@@ -1,6 +1,14 @@
+***application walkthrough Video***:
+https://drive.google.com/file/d/11qbd1GWminOy7EQOSSeHwc3_JIJGjqFn/view?usp=share_link
+
+
+
+
 # visiontrack
 
 A personal project I built to connect Roboflow with Redmine. The idea is simple — run object detection on an image and push the results directly as issues into Redmine without any manual copy-pasting.
+
+
 
 ## What it does
 
